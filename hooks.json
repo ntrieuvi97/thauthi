@@ -1,0 +1,11 @@
+{
+  "overmind": {
+    "Stop": [
+      {
+        "type": "command",
+        "command": "./bin/overmind hook stop",
+        "timeout": 5
+      }
+    ]
+  }
+}

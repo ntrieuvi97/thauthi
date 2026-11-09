@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="260" viewBox="0 0 680 260">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0b0f19"/>
+      <stop offset="100%" stop-color="#151c2c"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00f2fe"/>
+      <stop offset="100%" stop-color="#4facfe"/>
+    </linearGradient>
+  </defs>
+  <rect width="680" height="260" rx="14" fill="url(#bg)" stroke="#26334d" stroke-width="2"/>
+  <text x="28" y="42" fill="#00f2fe" font-family="monospace" font-size="18" font-weight="bold">OVERMIND // SELF-EVOLVING AGENT OS</text>
+  <text x="28" y="66" fill="#8b9bb4" font-family="monospace" font-size="12">Powered by Centsible Zero-Bloat Reflex Kernel</text>
+  <rect x="520" y="22" width="132" height="36" rx="8" fill="#112233" stroke="#00f2fe" stroke-width="1.5"/>
+  <text x="586" y="45" fill="#00f2fe" font-family="monospace" font-size="15" font-weight="bold" text-anchor="middle">LEVEL 8</text>
+
+  <line x1="28" y1="82" x2="652" y2="82" stroke="#223049" stroke-width="1"/>
+
+  <text x="28" y="116" fill="#a3b3cc" font-family="monospace" font-size="13">AGENT EVOLUTION IQ</text>
+  <text x="28" y="144" fill="#ffffff" font-family="monospace" font-size="24" font-weight="bold">193</text>
+
+  <text x="245" y="116" fill="#a3b3cc" font-family="monospace" font-size="13">DARWINIAN GENE POOL</text>
+  <text x="245" y="144" fill="#38ef7d" font-family="monospace" font-size="22" font-weight="bold">0 Elite / 7 Total</text>
+
+  <text x="485" y="116" fill="#a3b3cc" font-family="monospace" font-size="13">FORGED CLI TOOLS</text>
+  <text x="485" y="144" fill="#f6d365" font-family="monospace" font-size="22" font-weight="bold">5 Verified</text>
+
+  <text x="28" y="190" fill="#a3b3cc" font-family="monospace" font-size="13">MEAN GENE FITNESS</text>
+  <text x="28" y="216" fill="#00f2fe" font-family="monospace" font-size="20" font-weight="bold">52.3% (Gen G1)</text>
+
+  <text x="245" y="190" fill="#a3b3cc" font-family="monospace" font-size="13">TOKENS SAVED</text>
+  <text x="245" y="216" fill="#ffffff" font-family="monospace" font-size="20" font-weight="bold">4,500 tok (~$0.01)</text>
+
+  <text x="485" y="190" fill="#a3b3cc" font-family="monospace" font-size="13">RUNTIME COMPAT</text>
+  <text x="485" y="216" fill="#c3cfe2" font-family="monospace" font-size="14" font-weight="bold">AGY | Claude | OpenClaw</text>
+</svg>

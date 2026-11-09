@@ -1,0 +1,6 @@
+{
+  "name": "overmind",
+  "version": "0.1.0",
+  "description": "The Self-Evolving Meta-Kernel for AI Coding Agents — Autopoietic Tool Forge, Darwinian Gene Pool & Adversarial Shadow Verifier powered by Centsible.",
+  "hooks": "hooks.json"
+}

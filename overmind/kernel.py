@@ -1,0 +1,230 @@
+#!/usr/bin/env python3
+"""
+Overmind <-> Centsible Reflex Kernel Bridge.
+
+Dynamically binds to the Centsible engine (either installed in site-packages,
+located in a sibling repository, or installed in ~/.gemini/config/plugins/centsible)
+and provides a zero-dependency standalone fallback if Centsible is not yet installed.
+"""
+
+import hashlib
+import json
+import os
+import re
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+
+def get_overmind_home() -> Path:
+    """Return ~/.overmind or $OVERMIND_HOME."""
+    env_home = os.environ.get("OVERMIND_HOME")
+    base = Path(env_home).expanduser().resolve() if env_home else (Path.home() / ".overmind")
+    base.mkdir(parents=True, exist_ok=True)
+    return base
+
+
+def _discover_centsible_path() -> Optional[Path]:
+    """Locate Centsible repository if not already on sys.path."""
+    candidates = []
+    env_path = os.environ.get("CENTSIBLE_REPO_PATH")
+    if env_path:
+        candidates.append(Path(env_path).expanduser().resolve())
+
+    here = Path(__file__).resolve().parent.parent
+    candidates.extend([
+        here.parent / "centsible",
+        Path.home() / ".gemini" / "config" / "plugins" / "centsible",
+        Path.home() / ".centsible" / "repo",
+    ])
+    for cand in candidates:
+        if (cand / "core" / "facts_engine.py").exists():
+            return cand
+    return None
+
+
+def bind_centsible() -> bool:
+    """Ensure Centsible's `core` package is importable. Returns True if bound."""
+    try:
+        import core.facts_engine  # noqa: F401
+        return True
+    except ImportError:
+        pass
+
+    cand = _discover_centsible_path()
+    if cand and str(cand) not in sys.path:
+        sys.path.insert(0, str(cand))
+        try:
+            import core.facts_engine  # noqa: F401
+            return True
+        except ImportError:
+            return False
+    return False
+
+
+class StandaloneFactsKernel:
+    """
+    Lightweight compatible fallback for Centsible's FactsEngine when running
+    on a machine before Centsible is installed. Uses the exact same JSONL format.
+    """
+
+    def __init__(self, storage_path: Optional[Path] = None, global_path: Optional[Path] = None):
+        self.storage_path = storage_path or (get_overmind_home() / "facts.jsonl")
+        self.global_path = global_path
+        self.metrics_path = self.storage_path.parent / "metrics.json"
+
+    def list_facts(self, category: Optional[str] = None, scope: Optional[str] = None) -> List[Dict[str, Any]]:
+        if not self.storage_path.exists():
+            return []
+        out: List[Dict[str, Any]] = []
+        with open(self.storage_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                try:
+                    rec = json.loads(line)
+                    if not category or rec.get("category") == category:
+                        out.append(rec)
+                except ValueError:
+                    continue
+        return out
+
+    def _write_facts(self, facts: List[Dict[str, Any]]) -> None:
+        self.storage_path.parent.mkdir(parents=True, exist_ok=True)
+        content = "\n".join(json.dumps(f, ensure_ascii=False) for f in facts) + ("\n" if facts else "")
+        self.storage_path.write_text(content, encoding="utf-8")
+
+    def add_fact(
+        self,
+        pattern: str,
+        fact: str,
+        category: str = "general",
+        fact_id: Optional[str] = None,
+        est_savings: int = 350,
+        scope: str = "project",
+        force: bool = False,
+    ) -> Dict[str, Any]:
+        re.compile(pattern, re.IGNORECASE)
+        facts = self.list_facts()
+        fid = fact_id or f"fact_{hashlib.sha1(pattern.encode('utf-8')).hexdigest()[:8]}"
+        now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        for existing in facts:
+            if existing.get("id") == fid or existing.get("pattern") == pattern:
+                existing["pattern"] = pattern
+                existing["fact"] = fact
+                existing["category"] = category
+                existing["updated_at"] = now
+                self._write_facts(facts)
+                return existing
+        new_rec = {
+            "id": fid,
+            "pattern": pattern,
+            "fact": fact,
+            "category": category,
+            "hits": 0,
+            "attributed_hits": 0,
+            "saved_tokens": 0,
+            "est_savings": est_savings,
+            "created_at": now,
+        }
+        facts.append(new_rec)
+        self._write_facts(facts)
+        return new_rec
+
+    def remove_fact(self, identifier: str, scope: str = "project") -> bool:
+        facts = self.list_facts()
+        remaining = [f for f in facts if f.get("id") != identifier and f.get("pattern") != identifier]
+        if len(remaining) == len(facts):
+            return False
+        self._write_facts(remaining)
+        return True
+
+    def get_metrics_summary(self, usd_per_mtok: float = 3.0) -> Dict[str, Any]:
+        facts = self.list_facts()
+        hits = sum(int(f.get("hits", 0)) for f in facts)
+        saved = sum(int(f.get("saved_tokens", int(f.get("hits", 0)) * 350)) for f in facts)
+        return {
+            "total_facts": len(facts),
+            "fact_hits": hits,
+            "attributed_hits": sum(int(f.get("attributed_hits", 0)) for f in facts),
+            "net_tokens_saved": saved,
+            "estimated_usd_saved": round(saved / 1_000_000 * usd_per_mtok, 4),
+            "loop_interventions": 0,
+            "first_try_rate": 100.0,
+        }
+
+
+class CentsibleKernelBridge:
+    """
+    Unified interface over Centsible's Reflex Kernel (FactsEngine, EventLog, Transcript).
+    """
+
+    def __init__(
+        self,
+        facts_path: Optional[Path] = None,
+        events_path: Optional[Path] = None,
+    ):
+        self.centsible_bound = bind_centsible()
+        self.facts_path = facts_path
+        self.events_path = events_path
+
+        if self.centsible_bound:
+            from core.facts_engine import FactsEngine, get_default_facts_path, get_global_facts_path
+            target_path = facts_path or get_default_facts_path()
+            self.engine: Any = FactsEngine(storage_path=target_path, global_path=get_global_facts_path())
+            self.storage_path = self.engine.storage_path
+        else:
+            target_path = facts_path or (get_overmind_home() / "facts.jsonl")
+            self.engine = StandaloneFactsKernel(storage_path=target_path)
+            self.storage_path = self.engine.storage_path
+
+    def list_facts(self, category: Optional[str] = None, scope: Optional[str] = "project") -> List[Dict[str, Any]]:
+        return self.engine.list_facts(category=category, scope=scope)
+
+    def add_fact(
+        self,
+        pattern: str,
+        fact: str,
+        category: str = "general",
+        fact_id: Optional[str] = None,
+        est_savings: int = 450,
+        force: bool = True,
+    ) -> Dict[str, Any]:
+        return self.engine.add_fact(
+            pattern=pattern,
+            fact=fact,
+            category=category,
+            fact_id=fact_id,
+            est_savings=est_savings,
+            force=force,
+        )
+
+    def remove_fact(self, identifier: str) -> bool:
+        if hasattr(self.engine, "remove_fact"):
+            return bool(self.engine.remove_fact(identifier))
+        return False
+
+    def read_events(self) -> List[Dict[str, Any]]:
+        if self.events_path and self.events_path.exists():
+            events: List[Dict[str, Any]] = []
+            for line in self.events_path.read_text(encoding="utf-8").splitlines():
+                line = line.strip()
+                if line:
+                    try:
+                        events.append(json.loads(line))
+                    except ValueError:
+                        continue
+            return events
+
+        if self.centsible_bound:
+            try:
+                from core.event_log import read_events
+                return read_events()
+            except Exception:
+                return []
+        return []
+
+    def get_metrics_summary(self) -> Dict[str, Any]:
+        return self.engine.get_metrics_summary()
