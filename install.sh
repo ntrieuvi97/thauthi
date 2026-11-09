@@ -16,6 +16,11 @@ mkdir -p "$LOCAL_BIN"
 ln -sf "$REPO_DIR/bin/overmind" "$LOCAL_BIN/overmind"
 echo "✓ Linked CLI: $LOCAL_BIN/overmind -> $REPO_DIR/bin/overmind"
 
+PLUGIN_DIR="$HOME/.gemini/config/plugins/overmind"
+mkdir -p "$HOME/.gemini/config/plugins"
+ln -sfn "$REPO_DIR" "$PLUGIN_DIR"
+echo "✓ Linked Antigravity Plugin: $PLUGIN_DIR -> $REPO_DIR"
+
 export PATH="$LOCAL_BIN:$PATH"
 echo ""
 "$LOCAL_BIN/overmind" status || true

@@ -22,8 +22,116 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from overmind.kernel import CentsibleKernelBridge, get_overmind_home
 
-TRIVIAL_STANDALONE_BINS = {"cd", "pwd", "clear", "true", "false", "whoami", "date"}
+TRIVIAL_COMMAND_HEADS = {
+    # Navigation & standard inspection
+    "cd", "pwd", "clear", "true", "false", "whoami", "date",
+    "ls", "cat", "which", "where", "find", "echo", "printf", "head", "tail", "less", "more",
+    "grep", "egrep", "fgrep", "rg", "ag", "wc", "file", "stat",
+    # File manipulation primitives (when not part of a compound build/test)
+    "mkdir", "touch", "cp", "mv", "rm", "rmdir", "chmod", "chown", "ln",
+    # System & environment utilities
+    "sleep", "env", "export", "set", "unset", "alias",
+}
+# Keep TRIVIAL_STANDALONE_BINS for backward compatibility
+TRIVIAL_STANDALONE_BINS = TRIVIAL_COMMAND_HEADS
 SHELL_TOOL_NAMES = {"run_command", "Bash", "bash", "execute_command", "exec", "shell"}
+
+READONLY_GIT_SUBCOMMANDS = {
+    "status", "log", "branch", "diff", "show", "rev-parse", "remote", "tag", "describe",
+}
+
+AGENT_META_PATTERNS = [
+    re.compile(r"\bcheckpoint(?:\.py)?\b", re.IGNORECASE),
+    re.compile(r"\b(?:overmind|centsible)\b", re.IGNORECASE),
+    re.compile(r"\bom_[a-zA-Z0-9_]+\.py\b"),
+]
+
+
+def is_trivial_or_meta_step(cmd: str) -> bool:
+    """Determine whether a command step is trivial noise or agent meta-infrastructure."""
+    clean = _normalize_command(cmd)
+    if not clean:
+        return True
+
+    # 1. Check for agent meta-infrastructure patterns
+    for pat in AGENT_META_PATTERNS:
+        if pat.search(clean):
+            return True
+
+    # 2. Split compound commands (&&, ;, ||)
+    sub_cmds = [sc.strip() for sc in re.split(r"&&|;|\|\|", clean) if sc.strip()]
+    if not sub_cmds:
+        return True
+
+    # If every sub-command is trivial/readonly, the entire compound command is trivial
+    all_trivial = True
+    for sub in sub_cmds:
+        head = _command_head(sub)
+        if not head:
+            continue
+        if head in TRIVIAL_COMMAND_HEADS:
+            continue
+        if head == "git":
+            parts = sub.split()
+            if len(parts) >= 2 and parts[1].lower() in READONLY_GIT_SUBCOMMANDS:
+                continue
+        all_trivial = False
+        break
+
+    return all_trivial
+
+
+def _generalize_step_paths(cmd: str, workspace_dir: Optional[Path] = None) -> str:
+    """
+    De-hardcode absolute paths in command strings to relative or $HOME representations.
+    """
+    res = cmd
+    ws = (workspace_dir or Path.cwd()).resolve()
+    ws_str = str(ws)
+    if ws_str in res:
+        res = res.replace(ws_str + "/", "")
+        res = res.replace(ws_str, ".")
+
+    home_str = str(Path.home().resolve())
+    if home_str in res:
+        res = res.replace(home_str, "~")
+
+    return res
+
+
+def _subsume_candidates(candidates: Dict[Tuple[str, ...], "ToolCandidate"]) -> List["ToolCandidate"]:
+    """
+    Subsume shorter command sub-sequences into longer pipelines when their
+    occurrence frequency indicates they were just part of the larger pipeline.
+    """
+    sorted_candidates = sorted(
+        candidates.values(),
+        key=lambda c: len(c.steps),
+        reverse=True,
+    )
+
+    pruned: List["ToolCandidate"] = []
+    for cand in sorted_candidates:
+        cand_seq = tuple(cand.steps)
+        is_subsumed = False
+        for parent in pruned:
+            parent_seq = tuple(parent.steps)
+            if len(cand_seq) < len(parent_seq):
+                for start_idx in range(len(parent_seq) - len(cand_seq) + 1):
+                    if parent_seq[start_idx : start_idx + len(cand_seq)] == cand_seq:
+                        if cand.occurrences <= parent.occurrences + 1:
+                            is_subsumed = True
+                            break
+            if is_subsumed:
+                break
+        if not is_subsumed:
+            pruned.append(cand)
+
+    pruned.sort(
+        key=lambda c: (c.occurrences * len(c.steps), c.estimated_token_savings),
+        reverse=True,
+    )
+    return pruned
 
 
 @dataclass
@@ -190,7 +298,8 @@ def mine_candidates(
     min_occurrences: int = 2,
 ) -> List[ToolCandidate]:
     """
-    Mine recurring multi-step command sequences (2..3 steps) and error->recovery chains.
+    Mine recurring multi-step command sequences (2..3 steps) and error->recovery chains,
+    filtering out trivial shell noise and subsuming redundant sub-pipelines.
     """
     candidates: Dict[Tuple[str, ...], ToolCandidate] = {}
 
@@ -200,12 +309,10 @@ def mine_candidates(
         curr = command_steps[i]
         nxt = command_steps[i + 1]
         if curr.failed and not nxt.failed:
-            head_b = _command_head(nxt.command)
-            if head_b and head_b not in TRIVIAL_STANDALONE_BINS:
+            if not is_trivial_or_meta_step(nxt.command):
                 seq: Tuple[str, ...] = (nxt.command,)
                 if i + 2 < len(command_steps) and not command_steps[i + 2].failed:
-                    head_c = _command_head(command_steps[i + 2].command)
-                    if head_c and head_c not in TRIVIAL_STANDALONE_BINS:
+                    if not is_trivial_or_meta_step(command_steps[i + 2].command):
                         seq = (nxt.command, command_steps[i + 2].command)
                 if len(seq) >= 1:
                     recovery_counts[seq] = recovery_counts.get(seq, 0) + 1
@@ -227,7 +334,7 @@ def mine_candidates(
     clean_cmds = [
         s.command
         for s in command_steps
-        if not s.failed and _command_head(s.command) not in TRIVIAL_STANDALONE_BINS
+        if not s.failed and not is_trivial_or_meta_step(s.command)
     ]
 
     for window in (3, 2):
@@ -252,17 +359,13 @@ def mine_candidates(
                     estimated_token_savings=len(gram) * 450,
                 )
 
-    ranked = sorted(
-        candidates.values(),
-        key=lambda c: (c.occurrences * len(c.steps), c.estimated_token_savings),
-        reverse=True,
-    )
-    return ranked
+    return _subsume_candidates(candidates)
 
 
-def _render_tool_source(candidate: ToolCandidate) -> str:
-    """Render a zero-dependency, self-verifying Python CLI tool script."""
-    steps_json = json.dumps(candidate.steps, ensure_ascii=False, indent=4)
+def _render_tool_source(candidate: ToolCandidate, workspace_dir: Optional[Path] = None) -> str:
+    """Render a zero-dependency, self-verifying, parameterized Python CLI tool script."""
+    clean_steps = [_generalize_step_paths(s, workspace_dir) for s in candidate.steps]
+    steps_json = json.dumps(clean_steps, ensure_ascii=False, indent=4)
     now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     return f'''#!/usr/bin/env python3
 """
@@ -277,18 +380,24 @@ import json
 import subprocess
 import sys
 import time
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 PIPELINE_STEPS: List[str] = {steps_json}
 
 
-def run_pipeline(dry_run: bool = False, stop_on_error: bool = True, timeout: int = 120) -> Dict[str, Any]:
+def run_pipeline(
+    extra_args: Optional[List[str]] = None,
+    dry_run: bool = False,
+    stop_on_error: bool = True,
+    timeout: int = 120,
+) -> Dict[str, Any]:
     if dry_run:
         return {{
             "tool": "{candidate.slug}",
             "status": "dry_run_ok",
             "steps_count": len(PIPELINE_STEPS),
             "steps": PIPELINE_STEPS,
+            "extra_args": extra_args or [],
         }}
 
     results: List[Dict[str, Any]] = []
@@ -296,9 +405,13 @@ def run_pipeline(dry_run: bool = False, stop_on_error: bool = True, timeout: int
     start_all = time.monotonic()
 
     for idx, cmd in enumerate(PIPELINE_STEPS, start=1):
+        effective_cmd = cmd
+        if extra_args and idx == len(PIPELINE_STEPS):
+            effective_cmd = f"{{cmd}} {{' '.join(extra_args)}}"
+
         t0 = time.monotonic()
         proc = subprocess.run(
-            cmd,
+            effective_cmd,
             shell=True,
             text=True,
             capture_output=True,
@@ -307,7 +420,7 @@ def run_pipeline(dry_run: bool = False, stop_on_error: bool = True, timeout: int
         elapsed_ms = round((time.monotonic() - t0) * 1000, 1)
         step_rec = {{
             "step": idx,
-            "command": cmd,
+            "command": effective_cmd,
             "exit_code": proc.returncode,
             "elapsed_ms": elapsed_ms,
             "stdout": proc.stdout.strip(),
@@ -335,9 +448,11 @@ def main() -> int:
     parser.add_argument("--json", action="store_true", help="Emit structured JSON output")
     parser.add_argument("--continue-on-error", action="store_true", help="Continue remaining steps if a step fails")
     parser.add_argument("--timeout", type=int, default=120, help="Per-step timeout in seconds")
+    parser.add_argument("extra_args", nargs="*", default=[], help="Optional pass-through arguments appended to the final command step")
     args = parser.parse_args()
 
     report = run_pipeline(
+        extra_args=args.extra_args,
         dry_run=args.dry_run,
         stop_on_error=not args.continue_on_error,
         timeout=args.timeout,
@@ -443,12 +558,14 @@ class AutopoieticToolForge:
         self,
         candidate: ToolCandidate,
         bind_to_centsible: bool = True,
+        workspace_dir: Optional[Path] = None,
     ) -> Dict[str, Any]:
         """
         Synthesize the tool script, run the 3-stage verification gate, and bind to Centsible.
         """
+        candidate.steps = [_generalize_step_paths(s, workspace_dir) for s in candidate.steps]
         tool_path = self.tools_dir / f"{candidate.slug}.py"
-        source = _render_tool_source(candidate)
+        source = _render_tool_source(candidate, workspace_dir=workspace_dir)
         tool_path.write_text(source, encoding="utf-8")
 
         # Make executable (chmod +x)
@@ -497,6 +614,7 @@ class AutopoieticToolForge:
         transcript_path: Path,
         min_occurrences: int = 2,
         max_tools: int = 5,
+        workspace_dir: Optional[Path] = None,
     ) -> List[Dict[str, Any]]:
         """
         Mine a transcript file and automatically forge + verify the top recurring pipelines.
@@ -505,7 +623,7 @@ class AutopoieticToolForge:
         candidates = mine_candidates(cmd_steps, min_occurrences=min_occurrences)
         forged: List[Dict[str, Any]] = []
         for cand in candidates[:max_tools]:
-            forged.append(self.forge_candidate(cand))
+            forged.append(self.forge_candidate(cand, workspace_dir=workspace_dir))
         return forged
 
     def forge_custom_pipeline(
@@ -513,9 +631,10 @@ class AutopoieticToolForge:
         name: str,
         steps: List[str],
         trigger_pattern: Optional[str] = None,
+        workspace_dir: Optional[Path] = None,
     ) -> Dict[str, Any]:
         """Explicitly forge and verify a named multi-step pipeline tool."""
-        clean_steps = [_normalize_command(s) for s in steps if s.strip()]
+        clean_steps = [_generalize_step_paths(_normalize_command(s), workspace_dir) for s in steps if s.strip()]
         if not clean_steps:
             raise ValueError("Pipeline must contain at least one command step.")
         auto_slug, auto_title, auto_trigger = _build_slug_and_trigger(clean_steps, kind="pipeline")
@@ -530,4 +649,62 @@ class AutopoieticToolForge:
             trigger_pattern=trigger_pattern or auto_trigger,
             estimated_token_savings=max(450, len(clean_steps) * 450),
         )
-        return self.forge_candidate(cand)
+        return self.forge_candidate(cand, workspace_dir=workspace_dir)
+
+    def prune_tools(
+        self,
+        slug: Optional[str] = None,
+        only_dead: bool = False,
+        all_tools: bool = False,
+        dry_run: bool = False,
+    ) -> List[Dict[str, Any]]:
+        """
+        Prune unverified, dead, or noisy forged tools from filesystem, registry, and Centsible facts.
+        """
+        reg = self.load_registry()
+        to_prune: List[str] = []
+
+        if slug:
+            clean_slug = slug.strip()
+            for k in list(reg.keys()):
+                if k == clean_slug or k == f"om_{clean_slug}" or clean_slug in k:
+                    to_prune.append(k)
+        elif all_tools:
+            to_prune = list(reg.keys())
+        elif only_dead:
+            facts = {f.get("id"): f for f in self.bridge.list_facts()}
+            for s, item in reg.items():
+                fid = item.get("fact_id")
+                f = facts.get(fid, {})
+                hits = int(f.get("hits", 0))
+                attributed = int(f.get("attributed_hits", 0))
+                if hits == 0 or attributed == 0 or not item.get("verified"):
+                    to_prune.append(s)
+        else:
+            # Default prune: prune noisy/trivial tools (e.g. composed entirely of trivial heads)
+            for s, item in reg.items():
+                steps = item.get("steps") or []
+                if not steps or all(is_trivial_or_meta_step(st) for st in steps) or not item.get("verified"):
+                    to_prune.append(s)
+
+        pruned_records: List[Dict[str, Any]] = []
+        for s in to_prune:
+            item = reg.get(s, {})
+            pruned_records.append(item)
+            if not dry_run:
+                t_path = Path(item.get("tool_path") or (self.tools_dir / f"{s}.py"))
+                t_path.unlink(missing_ok=True)
+
+                fid = item.get("fact_id")
+                if fid:
+                    self.bridge.remove_fact(fid)
+                if item.get("trigger_pattern"):
+                    self.bridge.remove_fact(item["trigger_pattern"])
+
+                if s in reg:
+                    del reg[s]
+
+        if not dry_run and to_prune:
+            self._save_registry(reg)
+
+        return pruned_records

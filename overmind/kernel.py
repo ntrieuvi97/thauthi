@@ -243,7 +243,20 @@ class CentsibleKernelBridge:
 
     def remove_fact(self, identifier: str) -> bool:
         if hasattr(self.engine, "remove_fact"):
-            return bool(self.engine.remove_fact(identifier))
+            try:
+                if self.engine.remove_fact(identifier, scope="project"):
+                    return True
+            except TypeError:
+                pass
+            try:
+                if self.engine.remove_fact(identifier, scope="global"):
+                    return True
+            except (TypeError, Exception):
+                pass
+            try:
+                return bool(self.engine.remove_fact(identifier))
+            except Exception:
+                return False
         return False
 
     def read_events(self) -> List[Dict[str, Any]]:

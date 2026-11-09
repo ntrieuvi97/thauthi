@@ -23,7 +23,16 @@ from overmind.gene_pool import (
 )
 from overmind.kernel import CentsibleKernelBridge
 from overmind.scorecard import compute_evolution_telemetry, render_markdown_badge, render_svg_card
-from overmind.tool_forge import AutopoieticToolForge, extract_commands_from_transcript, mine_candidates
+from overmind.tool_forge import (
+    AutopoieticToolForge,
+    CommandStep,
+    ToolCandidate,
+    _generalize_step_paths,
+    _subsume_candidates,
+    extract_commands_from_transcript,
+    is_trivial_or_meta_step,
+    mine_candidates,
+)
 from overmind.verifier import ShadowVerifier
 
 
@@ -198,3 +207,93 @@ def test_scorecard_and_cli_end_to_end(tmp_path: Path) -> None:
     assert rc == 0
     assert svg_file.exists()
     assert "OVERMIND // SELF-EVOLVING AGENT OS" in svg_file.read_text(encoding="utf-8")
+
+
+def test_noise_shield_and_path_generalization(tmp_path: Path) -> None:
+    # 1. Verify trivial and exploratory inspection commands are filtered out
+    assert is_trivial_or_meta_step("ls -la /Users/test/repo") is True
+    assert is_trivial_or_meta_step("which python3") is True
+    assert is_trivial_or_meta_step("git status && git log -n 5") is True
+    assert is_trivial_or_meta_step("python3 checkpoint.py --help") is True
+    assert is_trivial_or_meta_step("python3 om_test_tool.py") is True
+
+    # 2. Verify non-trivial compilation, test, and build commands pass the filter
+    assert is_trivial_or_meta_step("pytest tests/ -v") is False
+    assert is_trivial_or_meta_step("python3 -m unittest discover tests/") is False
+    assert is_trivial_or_meta_step("npm run build && npm test") is False
+    assert is_trivial_or_meta_step("cargo test --all") is False
+
+    # 3. Verify path de-hardcoding converts workspace paths to relative
+    ws = tmp_path / "my_project"
+    ws.mkdir()
+    raw_cmd = f"python3 {ws}/scripts/build.py --out {ws}/dist"
+    generalized = _generalize_step_paths(raw_cmd, workspace_dir=ws)
+    assert str(ws) not in generalized
+    assert generalized == "python3 scripts/build.py --out dist"
+
+
+def test_candidate_subsumption() -> None:
+    # If a 3-step pipeline (A, B, C) occurs 2 times and (A, B) occurs 2 times,
+    # the 2-step sub-slice should be subsumed into the 3-step pipeline.
+    candidates = {
+        ("step_a", "step_b", "step_c"): ToolCandidate(
+            slug="om_long_pipe",
+            title="Long Pipe",
+            kind="pipeline",
+            steps=["step_a", "step_b", "step_c"],
+            occurrences=2,
+            trigger_pattern="long_pipe",
+            estimated_token_savings=1350,
+        ),
+        ("step_a", "step_b"): ToolCandidate(
+            slug="om_short_pipe",
+            title="Short Pipe",
+            kind="pipeline",
+            steps=["step_a", "step_b"],
+            occurrences=2,
+            trigger_pattern="short_pipe",
+            estimated_token_savings=900,
+        ),
+    }
+
+    subsumed = _subsume_candidates(candidates)
+    assert len(subsumed) == 1
+    assert subsumed[0].slug == "om_long_pipe"
+
+
+def test_parameterized_tool_execution_and_forge_prune(tmp_path: Path) -> None:
+    facts_file = tmp_path / "facts.jsonl"
+    tools_dir = tmp_path / "forged_tools"
+
+    bridge = CentsibleKernelBridge(facts_path=facts_file)
+    forge = AutopoieticToolForge(bridge=bridge, tools_dir=tools_dir)
+
+    # Forge a parameterized tool that uses sys.argv in the final step
+    entry = forge.forge_custom_pipeline(
+        name="param_runner",
+        steps=[
+            "python3 -c \"print('step_one_done')\"",
+            "python3 -c \"import sys; print('extra_args: ' + ' '.join(sys.argv[1:]))\"",
+        ],
+        trigger_pattern="param_runner",
+    )
+    tool_path = Path(entry["tool_path"])
+    assert tool_path.exists()
+
+    # 1. Execute with extra arguments and verify they are passed to the final command step
+    proc = subprocess.run(
+        [sys.executable, str(tool_path), "argA", "argB"],
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    assert proc.returncode == 0
+    assert "step_one_done" in proc.stdout
+    assert "extra_args: argA argB" in proc.stdout
+
+    # 2. Prune the forged tool and verify deletion from disk, registry, and facts
+    pruned = forge.prune_tools(slug="param_runner")
+    assert len(pruned) == 1
+    assert not tool_path.exists()
+    assert "om_param_runner" not in forge.load_registry()
+    assert not any(f.get("id") == entry["fact_id"] for f in bridge.list_facts())

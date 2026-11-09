@@ -53,6 +53,11 @@ def build_parser() -> argparse.ArgumentParser:
     p_forge.add_argument("--trigger", type=str, default=None, help="Optional regex trigger for Centsible auto-injection")
     p_forge.add_argument("--min-occurrences", type=int, default=2, help="Min occurrences in transcript to forge")
     p_forge.add_argument("--list", action="store_true", help="List all forged and verified tools")
+    p_forge.add_argument("--prune", action="store_true", help="Prune noisy, obsolete, or dead forged tools")
+    p_forge.add_argument("--slug", type=str, default=None, help="Specific tool slug to prune")
+    p_forge.add_argument("--dead", action="store_true", help="Prune unapplied or unverified tools")
+    p_forge.add_argument("--all", action="store_true", help="Prune all forged tools in registry")
+    p_forge.add_argument("--dry-run", action="store_true", help="Preview pruning actions without deleting")
     p_forge.add_argument("--json", action="store_true", help="Output JSON")
 
     # verify
@@ -142,6 +147,24 @@ def main(argv: Optional[List[str]] = None) -> int:
                 print(f"=== Autopoietic Forged Tools ({len(reg)}) ===")
                 for slug, info in reg.items():
                     print(f"• {slug}: {info.get('title')} -> {info.get('tool_path')}")
+            return 0
+
+        if getattr(args, "prune", False) or getattr(args, "slug", None) or (getattr(args, "all", False) and args.subcommand == "forge"):
+            pruned = forge.prune_tools(
+                slug=args.slug,
+                only_dead=getattr(args, "dead", False),
+                all_tools=getattr(args, "all", False),
+                dry_run=getattr(args, "dry_run", False),
+            )
+            if args.json:
+                print(json.dumps(pruned, ensure_ascii=False, indent=2))
+            else:
+                mode_str = "PREVIEW (dry-run)" if getattr(args, "dry_run", False) else "PRUNED"
+                print(f"=== Autopoietic Forge Pruning [{mode_str}] ===")
+                if not pruned:
+                    print("• No noisy or dead tools matched criteria.")
+                for item in pruned:
+                    print(f"• Pruned {item.get('slug')}: {item.get('title')} ({item.get('tool_path')})")
             return 0
 
         if args.name and args.steps:

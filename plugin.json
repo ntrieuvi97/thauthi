@@ -2,5 +2,12 @@
   "name": "overmind",
   "version": "0.1.0",
   "description": "The Self-Evolving Meta-Kernel for AI Coding Agents — Autopoietic Tool Forge, Darwinian Gene Pool & Adversarial Shadow Verifier powered by Centsible.",
-  "hooks": "hooks.json"
+  "author": "Vi Nguyen (@ntrieuvi97)",
+  "homepage": "https://github.com/ntrieuvi97/overmind",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ntrieuvi97/overmind.git"
+  },
+  "hooks": "hooks.json",
+  "skills": "skills"
 }
