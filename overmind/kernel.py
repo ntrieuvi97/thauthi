@@ -181,6 +181,46 @@ class CentsibleKernelBridge:
             self.storage_path = self.engine.storage_path
 
     def list_facts(self, category: Optional[str] = None, scope: Optional[str] = "project") -> List[Dict[str, Any]]:
+        if scope == "all" and self.centsible_bound:
+            all_facts: List[Dict[str, Any]] = []
+            seen_ids = set()
+            # 1. Projects directory
+            projects_dir = Path.home() / ".centsible" / "projects"
+            if projects_dir.exists():
+                for p_dir in sorted(projects_dir.glob("*")):
+                    pf = p_dir / "facts.jsonl"
+                    if pf.exists():
+                        for line in pf.read_text(encoding="utf-8").splitlines():
+                            line = line.strip()
+                            if not line or line.startswith("#"):
+                                continue
+                            try:
+                                rec = json.loads(line)
+                                fid = rec.get("id") or rec.get("pattern")
+                                if fid and fid not in seen_ids:
+                                    if not category or rec.get("category") == category:
+                                        seen_ids.add(fid)
+                                        all_facts.append(rec)
+                            except ValueError:
+                                continue
+            # 2. Global facts
+            gf = Path.home() / ".centsible" / "facts.jsonl"
+            if gf.exists():
+                for line in gf.read_text(encoding="utf-8").splitlines():
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+                    try:
+                        rec = json.loads(line)
+                        fid = rec.get("id") or rec.get("pattern")
+                        if fid and fid not in seen_ids:
+                            if not category or rec.get("category") == category:
+                                seen_ids.add(fid)
+                                all_facts.append(rec)
+                    except ValueError:
+                        continue
+            return all_facts
+
         return self.engine.list_facts(category=category, scope=scope)
 
     def add_fact(

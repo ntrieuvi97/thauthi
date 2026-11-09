@@ -31,6 +31,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     # status
     p_status = sub.add_parser("status", help="Show Overmind kernel, gene pool, and tool forge status")
+    p_status.add_argument("--all", action="store_true", help="Aggregate metrics and genes across all repositories")
     p_status.add_argument("--json", action="store_true", help="Output JSON")
 
     # fitness
@@ -90,7 +91,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     bridge = CentsibleKernelBridge(facts_path=args.facts_path)
 
     if args.subcommand == "status":
-        data = compute_evolution_telemetry(bridge=bridge)
+        all_proj = getattr(args, "all", None)
+        data = compute_evolution_telemetry(bridge=bridge, all_projects=True if all_proj else None)
         if getattr(args, "json", False):
             print(json.dumps(data, ensure_ascii=False, indent=2))
         else:

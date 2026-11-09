@@ -19,12 +19,20 @@ def compute_evolution_telemetry(
     bridge: Optional[CentsibleKernelBridge] = None,
     gene_pool: Optional[DarwinianGenePool] = None,
     tool_forge: Optional[AutopoieticToolForge] = None,
+    all_projects: Optional[bool] = None,
 ) -> Dict[str, Any]:
     bridge = bridge or CentsibleKernelBridge()
     gene_pool = gene_pool or DarwinianGenePool(bridge=bridge)
     tool_forge = tool_forge or AutopoieticToolForge(bridge=bridge)
 
-    population = gene_pool.evaluate_population()
+    cwd = Path.cwd()
+    is_at_home_or_non_git = (cwd == Path.home()) or not (cwd / ".git").exists()
+    use_all = all_projects if all_projects is not None else is_at_home_or_non_git
+
+    scope = "all" if use_all else "project"
+    scope_name = "All Repositories (Swarm Mode)" if use_all else f"Repo [{cwd.name}]"
+
+    population = gene_pool.evaluate_population(scope=scope)
     registry = tool_forge.load_registry()
     metrics = bridge.get_metrics_summary()
 
@@ -48,6 +56,8 @@ def compute_evolution_telemetry(
 
     return {
         "centsible_bound": bridge.centsible_bound,
+        "scope_name": scope_name,
+        "is_all_projects": use_all,
         "level": level,
         "xp": xp,
         "agent_iq": iq_score,
@@ -66,10 +76,12 @@ def compute_evolution_telemetry(
 
 def render_terminal_scorecard(data: Dict[str, Any]) -> str:
     kernel_tag = "Centsible Reflex Kernel [ACTIVE]" if data["centsible_bound"] else "Standalone Reflex Kernel [ACTIVE]"
+    scope_tag = data.get("scope_name", "Local Repo")
     lines = [
         "╔══════════════════════════════════════════════════════════════════════╗",
         "║  🧠 OVERMIND — SELF-EVOLVING AGENT OS SCORECARD                      ║",
         "╠══════════════════════════════════════════════════════════════════════╣",
+        f"║  • Scope:               {scope_tag:<43}║",
         f"║  • Kernel Engine:       {kernel_tag:<43}║",
         f"║  • Evolution Level:     Level {data['level']} (Agent IQ: {data['agent_iq']} | XP: {data['xp']})"
         + " " * max(0, 43 - len(f"Level {data['level']} (Agent IQ: {data['agent_iq']} | XP: {data['xp']})")) + "║",

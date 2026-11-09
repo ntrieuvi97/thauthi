@@ -208,11 +208,12 @@ class DarwinianGenePool:
         with open(self.graveyard_path, "a", encoding="utf-8") as f:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
-    def evaluate_population(self) -> List[Gene]:
+    def evaluate_population(self, scope: str = "project") -> List[Gene]:
         """
         Inspect all facts in the Centsible kernel + event logs, returning ranked Gene objects.
+        scope='project' (local repo) or scope='all' (all repos swarm).
         """
-        raw_facts = self.bridge.list_facts(scope="project")
+        raw_facts = self.bridge.list_facts(scope=scope)
         events = self.bridge.read_events()
         lineage_map = self._load_lineage_map()
 
