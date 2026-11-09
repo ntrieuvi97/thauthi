@@ -1,7 +1,7 @@
 {
   "name": "overmind",
-  "version": "0.1.0",
-  "description": "The Self-Evolving Meta-Kernel for AI Coding Agents — Autopoietic Tool Forge, Darwinian Gene Pool & Adversarial Shadow Verifier powered by Centsible.",
+  "version": "2.0.0",
+  "description": "Overmind 2.0: The Omniscient Autopoietic Kernel for AI Coding Agents — Live Runtime Frame Tracing, In-Flight Self-Healing AST Surgery, Differential Shadow Proofs & Symbolic AST Crystals.",
   "author": "Vi Nguyen (@ntrieuvi97)",
   "homepage": "https://github.com/ntrieuvi97/overmind",
   "repository": {

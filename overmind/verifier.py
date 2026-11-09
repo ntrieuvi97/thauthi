@@ -9,6 +9,7 @@ Acts as an uncompromising autonomous Principal Engineer before an agent session 
 - Optionally runs the repository's fast test suite to guarantee zero regression.
 """
 
+import os
 import py_compile
 import re
 import subprocess
@@ -73,9 +74,13 @@ class ShadowVerifier:
 
         test_result: Optional[Dict[str, Any]] = None
         if run_tests and (self.workspace_dir / "tests").exists():
+            env = dict(os.environ)
+            existing_pp = env.get("PYTHONPATH", "")
+            env["PYTHONPATH"] = f"{self.workspace_dir}{os.pathsep}{existing_pp}" if existing_pp else str(self.workspace_dir)
             proc = subprocess.run(
                 [sys.executable, "-m", "pytest", "tests", "-q", "--tb=short"],
                 cwd=str(self.workspace_dir),
+                env=env,
                 capture_output=True,
                 text=True,
                 timeout=timeout,

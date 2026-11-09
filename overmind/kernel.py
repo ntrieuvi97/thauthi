@@ -144,16 +144,101 @@ class StandaloneFactsKernel:
     def get_metrics_summary(self, usd_per_mtok: float = 3.0) -> Dict[str, Any]:
         facts = self.list_facts()
         hits = sum(int(f.get("hits", 0)) for f in facts)
+        attr_hits = sum(int(f.get("attributed_hits", 0)) for f in facts)
         saved = sum(int(f.get("saved_tokens", int(f.get("hits", 0)) * 350)) for f in facts)
+        attr_saved = sum(int(f.get("attributed_hits", 0)) * int(f.get("est_savings", 350)) for f in facts)
+        attr_rate = round((attr_hits / hits * 100.0), 1) if hits > 0 else 0.0
+        usd = round(saved / 1_000_000 * usd_per_mtok, 4)
+        verified_usd = round(attr_saved / 1_000_000 * usd_per_mtok, 4)
         return {
             "total_facts": len(facts),
             "fact_hits": hits,
-            "attributed_hits": sum(int(f.get("attributed_hits", 0)) for f in facts),
+            "attributed_hits": attr_hits,
+            "attribution_rate": attr_rate,
+            "net_saved_tokens": saved,
             "net_tokens_saved": saved,
-            "estimated_usd_saved": round(saved / 1_000_000 * usd_per_mtok, 4),
+            "attributed_saved_tokens": attr_saved,
+            "attributed_net_saved_tokens": attr_saved,
+            "verified_tokens_saved": attr_saved,
+            "saved_usd": usd,
+            "estimated_usd_saved": usd,
+            "verified_usd_saved": verified_usd,
             "loop_interventions": 0,
+            "measured_loop_tokens": 0,
+            "tool_calls_total": 0,
+            "command_calls_total": 0,
             "first_try_rate": 100.0,
+            "first_try_success_rate": 100.0,
+            "first_try_cmd_rate": 100.0,
         }
+
+
+def _resolve_smart_facts_path() -> Path:
+    """
+    Resolve default Centsible facts.jsonl path without letting an empty `.claude/`
+    or `.agents/` directory (created by `overmind init` for hooks/rules) shadow an
+    existing store in `.agents/` or `~/.centsible/projects/<repo>-<hash>/`.
+    """
+    from core.facts_engine import get_default_facts_path
+
+    default_path = get_default_facts_path()
+    if default_path.exists() or (default_path.parent / "metrics.json").exists():
+        return default_path
+
+    cwd = Path.cwd().resolve()
+    root = next((p for p in (cwd, *cwd.parents) if (p / ".git").exists()), cwd)
+    key = f"{root.name}-{hashlib.sha1(str(root).encode('utf-8')).hexdigest()[:8]}"
+    env_home = os.environ.get("CENTSIBLE_HOME")
+    global_dir = Path(env_home).expanduser().resolve() if env_home else (Path.home() / ".centsible")
+
+    fallback_candidates = [
+        cwd / ".agents" / "facts.jsonl",
+        cwd / ".claude" / "facts.jsonl",
+        global_dir / "projects" / key / "facts.jsonl",
+    ]
+    for cand in fallback_candidates:
+        if cand.exists() or (cand.parent / "metrics.json").exists():
+            return cand
+    return default_path
+
+
+def _discover_all_centsible_stores() -> List[Path]:
+    """Discover all known Centsible project facts.jsonl paths (global projects + sibling repos)."""
+    stores: List[Path] = []
+    seen_dirs = set()
+
+    def _add_store(facts_file: Path) -> None:
+        try:
+            parent_dir = facts_file.parent.resolve()
+        except OSError:
+            return
+        if parent_dir in seen_dirs:
+            return
+        if facts_file.exists() or (parent_dir / "metrics.json").exists():
+            seen_dirs.add(parent_dir)
+            stores.append(facts_file)
+
+    projects_dir = Path.home() / ".centsible" / "projects"
+    if projects_dir.exists():
+        for p_dir in sorted(projects_dir.glob("*")):
+            if p_dir.is_dir():
+                _add_store(p_dir / "facts.jsonl")
+
+    cwd = Path.cwd().resolve()
+    search_roots = [cwd]
+    if cwd.parent.exists() and cwd.parent != cwd:
+        try:
+            search_roots.extend(sorted(d for d in cwd.parent.iterdir() if d.is_dir()))
+        except OSError:
+            pass
+
+    for repo_dir in search_roots:
+        if repo_dir == Path.home():
+            continue
+        for folder in (".agents", ".claude"):
+            _add_store(repo_dir / folder / "facts.jsonl")
+
+    return stores
 
 
 class CentsibleKernelBridge:
@@ -171,8 +256,8 @@ class CentsibleKernelBridge:
         self.events_path = events_path
 
         if self.centsible_bound:
-            from core.facts_engine import FactsEngine, get_default_facts_path, get_global_facts_path
-            target_path = facts_path or get_default_facts_path()
+            from core.facts_engine import FactsEngine, get_global_facts_path
+            target_path = facts_path or _resolve_smart_facts_path()
             self.engine: Any = FactsEngine(storage_path=target_path, global_path=get_global_facts_path())
             self.storage_path = self.engine.storage_path
         else:
@@ -181,32 +266,18 @@ class CentsibleKernelBridge:
             self.storage_path = self.engine.storage_path
 
     def list_facts(self, category: Optional[str] = None, scope: Optional[str] = "project") -> List[Dict[str, Any]]:
-        if scope == "all" and self.centsible_bound:
+        if scope == "all" and self.centsible_bound and self.facts_path is None:
             all_facts: List[Dict[str, Any]] = []
             seen_ids = set()
-            # 1. Projects directory
-            projects_dir = Path.home() / ".centsible" / "projects"
-            if projects_dir.exists():
-                for p_dir in sorted(projects_dir.glob("*")):
-                    pf = p_dir / "facts.jsonl"
-                    if pf.exists():
-                        for line in pf.read_text(encoding="utf-8").splitlines():
-                            line = line.strip()
-                            if not line or line.startswith("#"):
-                                continue
-                            try:
-                                rec = json.loads(line)
-                                fid = rec.get("id") or rec.get("pattern")
-                                if fid and fid not in seen_ids:
-                                    if not category or rec.get("category") == category:
-                                        seen_ids.add(fid)
-                                        all_facts.append(rec)
-                            except ValueError:
-                                continue
-            # 2. Global facts
+            candidate_files = _discover_all_centsible_stores()
             gf = Path.home() / ".centsible" / "facts.jsonl"
             if gf.exists():
-                for line in gf.read_text(encoding="utf-8").splitlines():
+                candidate_files.append(gf)
+
+            for pf in candidate_files:
+                if not pf.exists():
+                    continue
+                for line in pf.read_text(encoding="utf-8").splitlines():
                     line = line.strip()
                     if not line or line.startswith("#"):
                         continue
@@ -279,5 +350,56 @@ class CentsibleKernelBridge:
                 return []
         return []
 
-    def get_metrics_summary(self) -> Dict[str, Any]:
-        return self.engine.get_metrics_summary()
+    def get_metrics_summary(self, scope: Optional[str] = "project") -> Dict[str, Any]:
+        if scope == "all" and self.centsible_bound and self.facts_path is None:
+            from core.facts_engine import FactsEngine, derive_summary, get_global_facts_path
+            sum_keys = (
+                "prompt_injections", "fact_hits", "attributed_hits", "tool_hint_hits",
+                "injected_tokens", "saved_discovery_tokens", "loop_interventions",
+                "saved_loop_tokens", "measured_loop_tokens", "tool_calls_total",
+                "tool_calls_failed", "first_try_successes", "command_calls_total",
+                "command_calls_failed", "first_try_cmd_successes", "auto_learned_facts",
+                "total_facts",
+            )
+            fact_keys = ("fact_hits", "attributed_hits", "injected_tokens", "saved_discovery_tokens", "auto_learned_facts")
+            total = dict.fromkeys(sum_keys, 0)
+            stores = _discover_all_centsible_stores()
+            for sf in stores:
+                for k, v in FactsEngine(storage_path=sf).get_metrics_summary().items():
+                    if k in total:
+                        total[k] += int(v)
+            gpath = get_global_facts_path()
+            if gpath.exists() or (gpath.parent / "metrics.json").exists():
+                for k, v in FactsEngine(storage_path=gpath).get_metrics_summary().items():
+                    if k in fact_keys:
+                        total[k] = max(total[k], int(v))
+                    elif k in total:
+                        total[k] += int(v)
+            m = dict(derive_summary({**total, "projects": len(stores)}))
+        else:
+            m = dict(self.engine.get_metrics_summary())
+
+        # Normalize aliases between Centsible and Standalone engines
+        net_est = int(m.get("net_tokens_saved", m.get("net_saved_tokens", 0)))
+        usd_est = float(m.get("estimated_usd_saved", m.get("saved_usd", 0.0)))
+        m["net_tokens_saved"] = net_est
+        m["net_saved_tokens"] = net_est
+        m["estimated_usd_saved"] = usd_est
+        m["saved_usd"] = usd_est
+
+        # Verified/Attributed token savings (backed by actual command attribution or halted loops)
+        attr_net = m.get("attributed_net_saved_tokens")
+        if attr_net is None:
+            attr_net = m.get("attributed_saved_tokens", 0)
+        verified_tok = max(0, int(attr_net))
+        usd_rate = float(m.get("usd_per_mtok", 3.0))
+        verified_usd = round((verified_tok / 1_000_000.0) * usd_rate, 4)
+        m["verified_tokens_saved"] = verified_tok
+        m["verified_usd_saved"] = verified_usd
+
+        # Empirical execution rates
+        m.setdefault("first_try_success_rate", float(m.get("first_try_rate", 100.0)))
+        m.setdefault("first_try_rate", float(m.get("first_try_success_rate", 100.0)))
+        m.setdefault("first_try_cmd_rate", float(m.get("first_try_success_rate", 100.0)))
+        m.setdefault("attribution_rate", 0.0)
+        return m

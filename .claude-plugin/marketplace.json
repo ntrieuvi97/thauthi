@@ -1,0 +1,21 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "overmind",
+  "description": "Overmind 2.0: The Omniscient Autopoietic Kernel for AI coding agents (Antigravity & Claude Code)",
+  "owner": {
+    "name": "Vi Nguyen",
+    "url": "https://github.com/ntrieuvi97"
+  },
+  "plugins": [
+    {
+      "name": "overmind",
+      "description": "Omniscient Runtime Tracer, In-Flight Self-Healing AST Surgery, Differential Shadow Prover & Symbolic AST Crystals.",
+      "version": "2.0.0",
+      "source": "./",
+      "category": "productivity",
+      "skills": [
+        "./skills/overmind"
+      ]
+    }
+  ]
+}

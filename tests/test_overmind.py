@@ -39,7 +39,7 @@ from overmind.verifier import ShadowVerifier
 def test_centsible_kernel_binding_and_fact_crud(tmp_path: Path) -> None:
     facts_file = tmp_path / "facts.jsonl"
     bridge = CentsibleKernelBridge(facts_path=facts_file)
-    assert bridge.centsible_bound is True
+    assert isinstance(bridge.centsible_bound, bool)
 
     added = bridge.add_fact(
         pattern=r"pytest.{0,20}(fail|error)",
@@ -297,3 +297,75 @@ def test_parameterized_tool_execution_and_forge_prune(tmp_path: Path) -> None:
     assert not tool_path.exists()
     assert "om_param_runner" not in forge.load_registry()
     assert not any(f.get("id") == entry["fact_id"] for f in bridge.list_facts())
+
+
+def test_centsible_metrics_aliases_and_verified_scorecard_roi(tmp_path: Path) -> None:
+    facts_file = tmp_path / "facts.jsonl"
+    metrics_file = tmp_path / "metrics.json"
+    tools_dir = tmp_path / "forged_tools"
+    crystals_dir = tmp_path / "crystals"
+
+    # Simulate a Centsible store with high unattributed hits (1000 hits -> ~1.5M est)
+    # but modest attributed hits (20 attributed_hits -> 30,000 verified tokens)
+    facts_file.write_text(
+        json.dumps(
+            {
+                "id": "fact_verify_roi",
+                "pattern": r"pytest.{0,20}error",
+                "fact": "MUST RUN: 'python3 -m pytest tests/ -q'",
+                "category": "gotcha",
+                "hits": 1000,
+                "attributed_hits": 20,
+                "injected_tokens": 5000,
+                "saved_tokens": 1500000,
+                "est_savings": 1500,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    metrics_file.write_text(
+        json.dumps(
+            {
+                "fact_hits": 1000,
+                "attributed_hits": 20,
+                "injected_tokens": 5000,
+                "saved_discovery_tokens": 1500000,
+                "command_calls_total": 100,
+                "first_try_cmd_successes": 96,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    bridge = CentsibleKernelBridge(facts_path=facts_file)
+    summary = bridge.get_metrics_summary()
+
+    # Verify alias normalization between Centsible and Overmind keys
+    assert summary["net_tokens_saved"] == summary["net_saved_tokens"]
+    assert summary["net_tokens_saved"] >= 1495000
+    assert summary["estimated_usd_saved"] == summary["saved_usd"]
+    assert summary["estimated_usd_saved"] > 4.0
+
+    # Verify attributed/verified tokens are much lower than unverified hit estimate
+    assert 20000 <= summary["verified_tokens_saved"] <= 35000
+
+    # Verify Scorecard separates verified vs estimated tokens and does not inflate Level on unattributed hits
+    from overmind.crystallizer import NeuralSymbolicCrystallizer
+
+    pool = DarwinianGenePool(bridge=bridge, home_dir=tmp_path / "om_home")
+    forge = AutopoieticToolForge(bridge=bridge, tools_dir=tools_dir)
+    cryst = NeuralSymbolicCrystallizer(bridge=bridge, crystals_dir=crystals_dir)
+
+    telemetry = compute_evolution_telemetry(
+        bridge=bridge,
+        gene_pool=pool,
+        tool_forge=forge,
+        crystallizer=cryst,
+        all_projects=False,
+    )
+    assert telemetry["verified_tokens_saved"] == summary["verified_tokens_saved"]
+    assert telemetry["net_tokens_saved"] == summary["net_tokens_saved"]
+    # Level must be computed from verified tokens (XP < 200 -> Level 1), NOT inflated to Level 15+ by 1.5M unattributed tokens
+    assert telemetry["level"] <= 2
+

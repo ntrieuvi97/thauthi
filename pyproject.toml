@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "overmind-os"
-version = "0.1.0"
-description = "The Self-Evolving Meta-Kernel for AI Coding Agents — Autopoietic Tool Forge, Darwinian Memory & Adversarial Verification powered by Centsible."
+version = "2.0.0"
+description = "Overmind 2.0: The Omniscient Autopoietic Kernel for AI Coding Agents — Live Runtime Frame Tracing, In-Flight Self-Healing AST Surgery, Differential Shadow Proofs & Zero-Token Symbolic AST Crystals."
 readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "MIT"}
