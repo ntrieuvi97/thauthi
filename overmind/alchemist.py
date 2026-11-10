@@ -164,16 +164,60 @@ def _transmute_membership_to_set(func_node: ast.FunctionDef) -> Optional[ast.Fun
     return ast.fix_missing_locations(cloned)
 
 
+def _insert_prefix_preserving_docstring(func_node: ast.FunctionDef, prefix_stmts: List[ast.stmt]) -> None:
+    if (
+        func_node.body
+        and isinstance(func_node.body[0], ast.Expr)
+        and isinstance(func_node.body[0].value, ast.Constant)
+        and isinstance(func_node.body[0].value.value, str)
+    ):
+        func_node.body = [func_node.body[0]] + prefix_stmts + func_node.body[1:]
+    else:
+        func_node.body = prefix_stmts + func_node.body
+
+
 def _transmute_nested_equality_loop(func_node: ast.FunctionDef) -> List[Tuple[str, ast.FunctionDef]]:
     """
     Detects nested `for x in a: for y in b: if x == y: ...` and synthesizes:
     1. Set-membership join (`if x in _om_set_b: ...`) when inner loop breaks or set semantics apply
-    2. Frequency-multiplicity join when duplicates in `b` are counted/appended without `break`
+    2. Frequency-multiplicity join (`for _om_rep in range(_om_freq_b.get(x, 0)): ...`) when
+       duplicates in `b` are counted/appended without `break`.
     """
     param_names = {arg.arg for arg in func_node.args.args}
     mutated = _collect_assigned_names(func_node.body)
     safe_params = param_names - mutated
     candidates: List[Tuple[str, ast.FunctionDef]] = []
+
+    def _extract_equality_match(stmt: ast.stmt) -> Optional[Tuple[str, str, ast.expr, List[ast.stmt], bool]]:
+        if (
+            isinstance(stmt, ast.For)
+            and isinstance(stmt.target, ast.Name)
+            and isinstance(stmt.iter, ast.Name)
+            and stmt.iter.id in safe_params
+            and len(stmt.body) == 1
+            and isinstance(stmt.body[0], ast.If)
+        ):
+            inner_var = stmt.target.id
+            iter_var = stmt.iter.id
+            if_node = stmt.body[0]
+            if (
+                isinstance(if_node.test, ast.Compare)
+                and len(if_node.test.ops) == 1
+                and isinstance(if_node.test.ops[0], ast.Eq)
+                and not if_node.orelse
+            ):
+                left, right = if_node.test.left, if_node.test.comparators[0]
+                other_expr: Optional[ast.expr] = None
+                if isinstance(left, ast.Name) and left.id == inner_var:
+                    other_expr = right
+                elif isinstance(right, ast.Name) and right.id == inner_var:
+                    other_expr = left
+                if other_expr is not None:
+                    has_break = any(isinstance(b_stmt, ast.Break) for b_stmt in if_node.body)
+                    cleaned_body = [b_stmt for b_stmt in if_node.body if not isinstance(b_stmt, ast.Break)]
+                    if cleaned_body:
+                        return inner_var, iter_var, other_expr, cleaned_body, has_break
+        return None
 
     # Candidate A: Set membership replacement (`if x in _om_set_b: <if_body_without_break>`)
     cloned_set = copy.deepcopy(func_node)
@@ -184,50 +228,21 @@ def _transmute_nested_equality_loop(func_node: ast.FunctionDef) -> List[Tuple[st
             continue
         new_outer_body: List[ast.stmt] = []
         for stmt in outer.body:
-            if (
-                isinstance(stmt, ast.For)
-                and isinstance(stmt.target, ast.Name)
-                and isinstance(stmt.iter, ast.Name)
-                and stmt.iter.id in safe_params
-                and len(stmt.body) == 1
-                and isinstance(stmt.body[0], ast.If)
-            ):
-                inner_var = stmt.target.id
-                iter_var = stmt.iter.id
-                if_node = stmt.body[0]
-                if (
-                    isinstance(if_node.test, ast.Compare)
-                    and len(if_node.test.ops) == 1
-                    and isinstance(if_node.test.ops[0], ast.Eq)
-                    and not if_node.orelse
-                ):
-                    left, right = if_node.test.left, if_node.test.comparators[0]
-                    other_expr: Optional[ast.expr] = None
-                    if isinstance(left, ast.Name) and left.id == inner_var:
-                        other_expr = right
-                    elif isinstance(right, ast.Name) and right.id == inner_var:
-                        other_expr = left
-
-                    if other_expr is not None:
-                        # Strip trailing `break` and replace references to `inner_var` with `other_expr`
-                        cleaned_body: List[ast.stmt] = []
-                        for b_stmt in if_node.body:
-                            if isinstance(b_stmt, ast.Break):
-                                continue
-                            cleaned_body.append(b_stmt)
-                        if cleaned_body:
-                            set_vars.add(iter_var)
-                            replacement_if = ast.If(
-                                test=ast.Compare(
-                                    left=copy.deepcopy(other_expr),
-                                    ops=[ast.In()],
-                                    comparators=[ast.Name(id=f"_om_set_{iter_var}", ctx=ast.Load())],
-                                ),
-                                body=cleaned_body,
-                                orelse=[],
-                            )
-                            new_outer_body.append(replacement_if)
-                            continue
+            match = _extract_equality_match(stmt)
+            if match is not None:
+                _, iter_var, other_expr, cleaned_body, _ = match
+                set_vars.add(iter_var)
+                replacement_if = ast.If(
+                    test=ast.Compare(
+                        left=copy.deepcopy(other_expr),
+                        ops=[ast.In()],
+                        comparators=[ast.Name(id=f"_om_set_{iter_var}", ctx=ast.Load())],
+                    ),
+                    body=cleaned_body,
+                    orelse=[],
+                )
+                new_outer_body.append(replacement_if)
+                continue
             new_outer_body.append(stmt)
         outer.body = new_outer_body
 
@@ -243,8 +258,65 @@ def _transmute_nested_equality_loop(func_node: ast.FunctionDef) -> List[Tuple[st
             )
             for v in sorted(set_vars)
         ]
-        cloned_set.body = prefix + cloned_set.body
+        _insert_prefix_preserving_docstring(cloned_set, prefix)
         candidates.append(("nested_equality_to_hash_set", ast.fix_missing_locations(cloned_set)))
+
+    # Candidate B: Frequency-multiplicity join for duplicate-preserving inner loops (no `break`)
+    cloned_freq = copy.deepcopy(func_node)
+    freq_vars: Set[str] = set()
+    for outer in ast.walk(cloned_freq):
+        if not isinstance(outer, ast.For):
+            continue
+        new_outer_body_f: List[ast.stmt] = []
+        for stmt in outer.body:
+            match = _extract_equality_match(stmt)
+            if match is not None:
+                inner_var, iter_var, other_expr, cleaned_body, has_break = match
+                if not has_break:
+                    uses_inner_var = any(
+                        isinstance(n, ast.Name) and n.id == inner_var
+                        for b in cleaned_body
+                        for n in ast.walk(b)
+                    )
+                    if not uses_inner_var:
+                        freq_vars.add(iter_var)
+                        rep_loop = ast.For(
+                            target=ast.Name(id="_om_rep", ctx=ast.Store()),
+                            iter=ast.Call(
+                                func=ast.Name(id="range", ctx=ast.Load()),
+                                args=[
+                                    ast.Call(
+                                        func=ast.Attribute(
+                                            value=ast.Name(id=f"_om_freq_{iter_var}", ctx=ast.Load()),
+                                            attr="get",
+                                            ctx=ast.Load(),
+                                        ),
+                                        args=[copy.deepcopy(other_expr), ast.Constant(value=0)],
+                                        keywords=[],
+                                    )
+                                ],
+                                keywords=[],
+                            ),
+                            body=cleaned_body,
+                            orelse=[],
+                        )
+                        new_outer_body_f.append(rep_loop)
+                        continue
+            new_outer_body_f.append(stmt)
+        outer.body = new_outer_body_f
+
+    if freq_vars:
+        freq_prefix: List[ast.stmt] = []
+        for v in sorted(freq_vars):
+            freq_prefix.extend(
+                ast.parse(
+                    f"_om_freq_{v} = {{}}\n"
+                    f"for _om_el in {v}:\n"
+                    f"    _om_freq_{v}[_om_el] = _om_freq_{v}.get(_om_el, 0) + 1\n"
+                ).body
+            )
+        _insert_prefix_preserving_docstring(cloned_freq, freq_prefix)
+        candidates.append(("nested_equality_to_frequency_map", ast.fix_missing_locations(cloned_freq)))
 
     return candidates
 

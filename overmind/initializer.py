@@ -95,7 +95,8 @@ When working in this repository, use the Overmind 3.0 CLI (`overmind`) to elimin
 6. **Chronos Time-Travel Replay (`overmind chronos --script <file.py>`):** Record and replay stateful I/O cassettes in `<1ms` with zero side effects.
 7. **Contract-to-Code CEGIS Synthesis (`overmind synthesize <file.py> --apply`):** Synthesize proven code from docstring `>>>` examples.
 8. **Whole-Repo Call-Graph Hive (`overmind hive . --apply`):** Automatically repair broken callers across files after function signature changes.
-9. **Pre-Completion Verification (`overmind verify --run-tests`):** Always run before finishing any task.
+9. **Zero-Dep MCP Server (`overmind mcp`):** Prefer Overmind MCP tools (`overmind_trace`, `overmind_prove`, `overmind_optimize`, `overmind_hive`, `overmind_chronos`) over static text guessing.
+10. **Pre-Completion Verification (`overmind verify --run-tests`):** Always run before finishing any task.
 """
 
 
@@ -186,6 +187,25 @@ class RepoInitializer:
             stop_hooks.append(overmind_hook_entry)
         claude_settings_path.write_text(json.dumps(settings, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
         installed.append(str(claude_settings_path.relative_to(self.repo_dir)))
+
+        # 4. Standard MCP Server Config (.mcp.json & .cursor/mcp.json)
+        for mcp_rel in (Path(".mcp.json"), Path(".cursor") / "mcp.json"):
+            mcp_path = self.repo_dir / mcp_rel
+            mcp_path.parent.mkdir(parents=True, exist_ok=True)
+            mcp_cfg: Dict[str, Any] = {}
+            if mcp_path.exists():
+                try:
+                    mcp_cfg = json.loads(mcp_path.read_text(encoding="utf-8"))
+                except ValueError:
+                    mcp_cfg = {}
+            servers = mcp_cfg.setdefault("mcpServers", {})
+            if "overmind" not in servers:
+                servers["overmind"] = {
+                    "command": "overmind",
+                    "args": ["mcp", "--root", "."],
+                }
+            mcp_path.write_text(json.dumps(mcp_cfg, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+            installed.append(str(mcp_path.relative_to(self.repo_dir)))
 
         return installed
 

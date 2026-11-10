@@ -22,14 +22,18 @@ Overmind 3.0 moves AI coding agents beyond the "Static Text Guessing Era" into t
 ## Core Commands
 
 ```bash
-# 0. Onboard Any Repository
+# 0. Onboard Any Repository (Hooks, CI, Rules, and `.mcp.json`)
 overmind init
+
+# 0b. Start Zero-Dependency MCP Server for Native Agent Tool Calling
+overmind mcp --root .
 
 # 1. Omniscient Runtime Tracer & Causal Fault Graph
 overmind trace path/to/script.py
 
-# 2. In-Flight Self-Healing Immune System & AST Surgery
+# 2. In-Flight Self-Healing Immune System & AST Surgery (`safe-fallback` or strict `shadow-pr` diff mode)
 overmind heal path/to/script.py --apply
+overmind heal path/to/payment.py --mode shadow-pr --json
 
 # 3. Behavioral Invariant Miner & Differential Shadow Prover
 overmind prove --mine app.py

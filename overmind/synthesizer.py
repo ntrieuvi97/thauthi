@@ -37,6 +37,7 @@ class SynthesisResult:
     is_pure: bool
     candidates_evaluated: int
     contract: Dict[str, Any] = field(default_factory=dict)
+    source_kind: str = "cegis_template"
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -213,6 +214,13 @@ class ContractSynthesizer:
                 "' '.join({p0}.split())",
                 "{p0}.split()",
                 "len({p0}.split())",
+                "dict((_k, sum(1 for _v in {p0} if _v == _k)) for _k in dict.fromkeys({p0}))",
+                "[len(_x) for _x in {p0}]",
+                "sum(1 for _x in {p0} if _x > 0)",
+                "sum(1 for _x in {p0} if _x % 2 == 0)",
+                "max({p0}, key=len) if {p0} else ''",
+                "min({p0}, key=len) if {p0} else ''",
+                "{p0}.strip().lower().replace(' ', '-')",
             ])
         elif len(param_names) == 2:
             templates.extend([
@@ -242,6 +250,8 @@ class ContractSynthesizer:
                 "[_r[{p1}] for _r in {p0} if {p1} in _r]",
                 "sum(_r.get({p1}, 0) for _r in {p0})",
                 "any(({p1} - _x) in set({p0}) for _x in {p0})",
+                "{p0}.get({p1})",
+                "len([_x for _x in {p0} if _x == {p1}])",
             ])
         elif len(param_names) >= 3:
             templates.extend([
@@ -250,6 +260,7 @@ class ContractSynthesizer:
                 "max({p0}, min({p1}, {p2}))",
                 "min(max({p0}, {p1}), {p2})",
                 "{p0}.replace({p1}, {p2})",
+                "{p1} if {p0} < {p1} else ({p2} if {p0} > {p2} else {p0})",
             ])
 
         rendered: List[str] = []
@@ -259,6 +270,73 @@ class ContractSynthesizer:
                 rendered.append(expr)
         return rendered
 
+    @staticmethod
+    def _compile_candidate(
+        func_name: str,
+        params_sig: str,
+        raw_candidate: str,
+        extra_globals: Optional[Dict[str, Any]] = None,
+    ) -> Optional[Tuple[str, Callable, ast.FunctionDef, str]]:
+        """
+        Compile either a single expression, a multi-line function body, or a full `def ...`
+        candidate into an executable Python callable + AST.
+        """
+        stripped = textwrap.dedent(raw_candidate).strip()
+        if not stripped:
+            return None
+
+        cand_src: str
+        expr_summary: str
+
+        # Case A: Full function definition `def ...`
+        if stripped.startswith("def ") or stripped.startswith("async def "):
+            try:
+                parsed = ast.parse(stripped)
+            except SyntaxError:
+                return None
+            if len(parsed.body) != 1 or not isinstance(parsed.body[0], ast.FunctionDef):
+                return None
+            fn_node = parsed.body[0]
+            fn_node.name = func_name
+            ast.fix_missing_locations(parsed)
+            cand_src = ast.unparse(parsed)
+            if (
+                len(fn_node.body) == 1
+                and isinstance(fn_node.body[0], ast.Return)
+                and fn_node.body[0].value is not None
+            ):
+                expr_summary = ast.unparse(fn_node.body[0].value)
+            else:
+                expr_summary = "<multi-statement body>"
+        else:
+            # Case B: Single expression (try eval mode first)
+            is_expr = False
+            try:
+                ast.parse(stripped, mode="eval")
+                is_expr = True
+            except SyntaxError:
+                is_expr = False
+
+            if is_expr:
+                cand_src = f"def {func_name}({params_sig}):\n    return {stripped}\n"
+                expr_summary = stripped
+            else:
+                # Case C: Statement block
+                indented = textwrap.indent(stripped, "    ")
+                cand_src = f"def {func_name}({params_sig}):\n{indented}\n"
+                expr_summary = "<multi-statement body>"
+
+        try:
+            tree = ast.parse(cand_src)
+            code_obj = compile(tree, filename=f"<cegis:{func_name}>", mode="exec")
+            ns: Dict[str, Any] = dict(extra_globals or {})
+            exec(code_obj, ns)
+            cand_fn = ns[func_name]
+            cand_ast = next(n for n in tree.body if isinstance(n, ast.FunctionDef))
+            return cand_src.strip(), cand_fn, cand_ast, expr_summary
+        except Exception:
+            return None
+
     @classmethod
     def synthesize_for_callable(
         cls,
@@ -266,6 +344,8 @@ class ContractSynthesizer:
         examples: Optional[List[Tuple[Tuple[Any, ...], Any]]] = None,
         postcondition: Optional[Callable[[Tuple[Any, ...], Any], bool]] = None,
         max_complexity: str = "O(N)",
+        candidate_sources: Optional[Sequence[str]] = None,
+        auto_crystallize: bool = False,
     ) -> SynthesisResult:
         sig = inspect.signature(func)
         param_names = [
@@ -281,27 +361,28 @@ class ContractSynthesizer:
                 f"or `>>> {func.__name__}(...)` doctest examples in the docstring."
             )
 
-        candidates = cls._build_candidate_pool(param_names, io_examples)
+        builtin_candidates = cls._build_candidate_pool(param_names, io_examples)
+        candidate_items: List[Tuple[str, str]] = []
+        for c_src in (candidate_sources or []):
+            candidate_items.append(("hybrid_neural_cegis", str(c_src)))
+        for expr in builtin_candidates:
+            candidate_items.append(("cegis_template", expr))
+
         max_rank = COMPLEXITY_RANK.get(max_complexity, 3)
 
         func_name = func.__name__
         params_sig = ", ".join(param_names)
+        func_globals = dict(getattr(func, "__globals__", {}))
         evaluated = 0
 
-        best_match: Optional[Tuple[str, str, Callable, BehavioralContract]] = None
+        best_match: Optional[Tuple[str, str, str, Callable, BehavioralContract]] = None
 
-        for expr in candidates:
+        for source_kind, raw_cand in candidate_items:
             evaluated += 1
-            cand_src = f"def {func_name}({params_sig}):\n    return {expr}\n"
-            try:
-                tree = ast.parse(cand_src)
-                code_obj = compile(tree, filename=f"<cegis:{func_name}>", mode="exec")
-                ns: Dict[str, Any] = {}
-                exec(code_obj, ns)
-                cand_fn = ns[func_name]
-                cand_ast = next(n for n in tree.body if isinstance(n, ast.FunctionDef))
-            except Exception:
+            compiled = cls._compile_candidate(func_name, params_sig, raw_cand, extra_globals=func_globals)
+            if compiled is None:
                 continue
+            cand_src, cand_fn, cand_ast, expr_summary = compiled
 
             # Gate 1: Must satisfy all I/O examples and postconditions
             all_match = True
@@ -321,7 +402,7 @@ class ContractSynthesizer:
             if not all_match:
                 continue
 
-            # Gate 2: Mine behavioral contract and check purity + complexity bound
+            # Gate 2: Mine behavioral contract (with 100+ property fuzzing) and check purity + complexity bound
             custom_in = [ex_args for ex_args, _ in io_examples]
             contract = BehavioralInvariantMiner.mine_contract(cand_fn, cand_ast, custom_inputs=custom_in)
             if not contract.is_pure_on_args:
@@ -329,30 +410,45 @@ class ContractSynthesizer:
 
             c_rank = COMPLEXITY_RANK.get(contract.complexity_class, 0)
             if c_rank == 0 or c_rank <= max_rank:
+                contract_dict = contract.to_dict()
+                if auto_crystallize and expr_summary != "<multi-statement body>":
+                    try:
+                        from overmind.crystallizer import NeuralSymbolicCrystallizer
+                        crys = NeuralSymbolicCrystallizer()
+                        crystal = crys.crystallize_edit(
+                            name=f"synth_{func_name}",
+                            before_code=f"def {func_name}({params_sig}):\n    pass\n",
+                            after_code=cand_src,
+                        )
+                        contract_dict["crystallized_id"] = crystal.crystal_id
+                    except Exception:
+                        pass
                 return SynthesisResult(
                     func_name=func_name,
-                    synthesized_expr=expr,
-                    synthesized_source=cand_src.strip(),
+                    synthesized_expr=expr_summary,
+                    synthesized_source=cand_src,
                     examples_verified=len(io_examples),
                     complexity_class=contract.complexity_class,
                     is_pure=contract.is_pure_on_args,
                     candidates_evaluated=evaluated,
-                    contract=contract.to_dict(),
+                    contract=contract_dict,
+                    source_kind=source_kind,
                 )
             elif best_match is None:
-                best_match = (expr, cand_src.strip(), cand_fn, contract)
+                best_match = (source_kind, expr_summary, cand_src, cand_fn, contract)
 
         if best_match is not None:
-            expr, src_str, _, contract = best_match
+            source_kind, expr_summary, src_str, _, contract = best_match
             return SynthesisResult(
                 func_name=func_name,
-                synthesized_expr=expr,
+                synthesized_expr=expr_summary,
                 synthesized_source=src_str,
                 examples_verified=len(io_examples),
                 complexity_class=contract.complexity_class,
                 is_pure=contract.is_pure_on_args,
                 candidates_evaluated=evaluated,
                 contract=contract.to_dict(),
+                source_kind=source_kind,
             )
 
         raise ValueError(
@@ -361,10 +457,17 @@ class ContractSynthesizer:
         )
 
     @classmethod
-    def synthesize_file(cls, file_path: Path, apply: bool = False) -> Tuple[str, List[SynthesisResult]]:
+    def synthesize_file(
+        cls,
+        file_path: Path,
+        apply: bool = False,
+        candidate_sources: Optional[Sequence[str]] = None,
+        auto_crystallize: bool = False,
+    ) -> Tuple[str, List[SynthesisResult]]:
         """
         Scan a Python file for stub functions (`pass` or `...` body with doctest examples),
-        synthesize their implementations via CEGIS, and optionally write them back to disk.
+        synthesize their implementations via CEGIS (optionally verifying caller-supplied candidates),
+        and optionally write them back to disk.
         """
         src = file_path.read_text(encoding="utf-8")
         tree = ast.parse(src, filename=str(file_path))
@@ -373,7 +476,7 @@ class ContractSynthesizer:
         exec(code_obj, ns)
 
         results: List[SynthesisResult] = []
-        synthesized_returns: Dict[str, ast.stmt] = {}
+        synthesized_bodies: Dict[str, List[ast.stmt]] = {}
 
         for node in tree.body:
             if not isinstance(node, ast.FunctionDef):
@@ -403,22 +506,28 @@ class ContractSynthesizer:
             if not examples:
                 continue
 
-            res = cls.synthesize_for_callable(fn_obj, examples=examples)
+            res = cls.synthesize_for_callable(
+                fn_obj,
+                examples=examples,
+                candidate_sources=candidate_sources,
+                auto_crystallize=auto_crystallize,
+            )
             results.append(res)
-            ret_stmt = ast.parse(f"return {res.synthesized_expr}").body[0]
-            synthesized_returns[node.name] = ret_stmt
+            synth_fn_ast = ast.parse(res.synthesized_source).body[0]
+            if isinstance(synth_fn_ast, ast.FunctionDef):
+                synthesized_bodies[node.name] = synth_fn_ast.body
 
-        if not synthesized_returns:
+        if not synthesized_bodies:
             return src, []
 
         class _StubFiller(ast.NodeTransformer):
             def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.AST:
-                if node.name in synthesized_returns:
+                if node.name in synthesized_bodies:
                     doc_stmts = [
                         s for s in node.body
                         if isinstance(s, ast.Expr) and isinstance(s.value, ast.Constant) and isinstance(s.value.value, str)
                     ]
-                    node.body = doc_stmts + [synthesized_returns[node.name]]
+                    node.body = doc_stmts + copy.deepcopy(synthesized_bodies[node.name])
                 return node
 
         new_tree = ast.fix_missing_locations(_StubFiller().visit(tree))
@@ -434,6 +543,8 @@ def synthesize(
     examples: Optional[List[Tuple[Tuple[Any, ...], Any]]] = None,
     postcondition: Optional[Callable[[Tuple[Any, ...], Any], bool]] = None,
     max_complexity: str = "O(N)",
+    candidates: Optional[Sequence[str]] = None,
+    auto_crystallize: bool = False,
 ) -> Any:
     """
     Decorator that synthesizes a function's AST implementation at definition time
@@ -445,6 +556,8 @@ def synthesize(
             examples=examples,
             postcondition=postcondition,
             max_complexity=max_complexity,
+            candidate_sources=candidates,
+            auto_crystallize=auto_crystallize,
         )
         tree = ast.parse(res.synthesized_source)
         code_obj = compile(tree, filename=f"<synthesized:{fn.__name__}>", mode="exec")

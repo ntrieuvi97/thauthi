@@ -214,6 +214,10 @@ class OmniscientTracer:
     def _should_trace_frame(self, frame: Any) -> bool:
         code = frame.f_code
         func_name = code.co_name
+        if func_name in ("<genexpr>", "<listcomp>", "<setcomp>", "<dictcomp>"):
+            if frame.f_back is not None and id(frame.f_back) in self._active_stack:
+                return True
+            return False
         if func_name.startswith("<") and func_name != "<module>":
             return False
         filename = code.co_filename

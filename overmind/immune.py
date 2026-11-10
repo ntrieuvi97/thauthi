@@ -10,6 +10,7 @@ and hot-swaps the healed code without crashing the process.
 
 import ast
 import copy
+import difflib
 import functools
 import hashlib
 import inspect
@@ -48,6 +49,8 @@ class SurgeryReport:
     healed_return_value: Any
     regression_test_path: Optional[str] = None
     source_file_patched: bool = False
+    mode: str = "safe-fallback"
+    patch_diff_path: Optional[str] = None
     timestamp: float = field(default_factory=time.time)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -203,9 +206,9 @@ class CounterfactualSurgeon:
         raw_src = inspect.getsource(func)
         dedented = textwrap.dedent(raw_src)
         tree = ast.parse(dedented)
-        func_def: Optional[ast.FunctionDef] = None
+        func_def: Optional[Any] = None
         for node in tree.body:
-            if isinstance(node, ast.FunctionDef):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 # Strip @immune decorators so counterfactual execution runs the raw body directly
                 node.decorator_list = [
                     d for d in node.decorator_list
@@ -276,7 +279,7 @@ class CounterfactualSurgeon:
         if none_params and exc_type_name in ("TypeError", "AttributeError", "ValueError"):
             for dval in defaults[:3]:
                 t_copy = copy.deepcopy(base_tree)
-                f_def = next(n for n in t_copy.body if isinstance(n, ast.FunctionDef))
+                f_def = next(n for n in t_copy.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)))
                 checks = [
                     ast.Compare(
                         left=ast.Name(id=p, ctx=ast.Load()),
@@ -298,7 +301,7 @@ class CounterfactualSurgeon:
         # 3. Structural Exception Boundary Fallback (universal last-resort guard)
         for dval in defaults[:2]:
             t_copy = copy.deepcopy(base_tree)
-            f_def = next(n for n in t_copy.body if isinstance(n, ast.FunctionDef))
+            f_def = next(n for n in t_copy.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)))
             orig_body = list(f_def.body)
             try_node = ast.Try(
                 body=orig_body,
@@ -380,10 +383,55 @@ class AutopoieticImmuneSystem:
     def __init__(self, storage_dir: Optional[Path] = None):
         self.storage_dir = storage_dir or (Path.cwd() / ".overmind")
         self.tests_dir = self.storage_dir / "immune_tests"
+        self.patches_dir = self.storage_dir / "patches"
         self.surgeries_file = self.storage_dir / "surgeries.jsonl"
         self._healthy_frames: Dict[str, List[RecordedCallFrame]] = {}
         self._healed_impls: Dict[str, Callable] = {}
         self.surgeries: List[SurgeryReport] = []
+
+    def synthesize_patch_diff(
+        self,
+        func: Callable,
+        orig_source: str,
+        patched_source: str,
+        surgery_id: str,
+    ) -> Optional[Path]:
+        """Generate a unified `.diff` patch file suitable for PR review / `git apply`."""
+        self.patches_dir.mkdir(parents=True, exist_ok=True)
+        diff_file = self.patches_dir / f"{surgery_id}_{func.__name__}.diff"
+
+        src_file_str = inspect.getsourcefile(func) or ""
+        src_path = Path(src_file_str).resolve() if src_file_str else None
+        rel_label = func.__name__ + ".py"
+        before_lines: List[str] = orig_source.strip().splitlines(keepends=True)
+        after_lines: List[str] = patched_source.strip().splitlines(keepends=True)
+
+        if src_path and src_path.exists():
+            try:
+                rel_label = src_path.name
+                raw_func_src = inspect.getsource(func)
+                file_text = src_path.read_text(encoding="utf-8")
+                if raw_func_src in file_text:
+                    first_line = raw_func_src.splitlines()[0]
+                    indent = first_line[: len(first_line) - len(first_line.lstrip())]
+                    indented_patch = textwrap.indent(patched_source.strip(), indent) + "\n"
+                    new_file_text = file_text.replace(raw_func_src, indented_patch, 1)
+                    before_lines = file_text.splitlines(keepends=True)
+                    after_lines = new_file_text.splitlines(keepends=True)
+            except Exception:
+                pass
+
+        diff_lines = list(
+            difflib.unified_diff(
+                before_lines,
+                after_lines,
+                fromfile=f"a/{rel_label}",
+                tofile=f"b/{rel_label}",
+            )
+        )
+        diff_text = "".join(diff_lines)
+        diff_file.write_text(diff_text, encoding="utf-8")
+        return diff_file
 
     def synthesize_regression_test(
         self,
@@ -449,8 +497,16 @@ class AutopoieticImmuneSystem:
         auto_heal: bool = True,
         persist_test: bool = True,
         apply_patch: bool = False,
+        mode: str = "safe-fallback",
     ) -> Callable:
-        """Decorator that equips any Python function with In-Flight Self-Healing."""
+        """
+        Decorator that equips any Python function with In-Flight Self-Healing.
+        - `mode="safe-fallback"` (default): hot-swaps verified AST patch and returns healed output.
+        - `mode="shadow-pr"`: generates cryo-test + unified `.diff` PR patch while re-raising loudly
+          so strict transactional/financial code never returns silent fallback values.
+        """
+        if mode not in ("safe-fallback", "shadow-pr"):
+            raise ValueError(f"Unsupported immune mode `{mode}`; expected 'safe-fallback' or 'shadow-pr'.")
 
         def decorator(target_fn: Callable) -> Callable:
             qual_key = f"{target_fn.__module__}.{target_fn.__qualname__}"
@@ -458,7 +514,7 @@ class AutopoieticImmuneSystem:
 
             @functools.wraps(target_fn)
             def wrapper(*args: Any, **kwargs: Any) -> Any:
-                active_fn = self._healed_impls.get(qual_key, target_fn)
+                active_fn = self._healed_impls.get(qual_key, target_fn) if mode == "safe-fallback" else target_fn
                 try:
                     res = active_fn(*args, **kwargs)
                     history = self._healthy_frames[qual_key]
@@ -493,8 +549,10 @@ class AutopoieticImmuneSystem:
                         raise
 
                     strategy, patched_src, healed_fn, healed_out = outcome
-                    # Hot-swap in live memory so future calls execute healed_fn directly
-                    self._healed_impls[qual_key] = healed_fn
+
+                    if mode == "safe-fallback":
+                        # Hot-swap in live memory so future calls execute healed_fn directly
+                        self._healed_impls[qual_key] = healed_fn
 
                     test_path_str: Optional[str] = None
                     if persist_test:
@@ -507,12 +565,19 @@ class AutopoieticImmuneSystem:
                         )
                         test_path_str = str(t_path)
 
-                    patched_disk = False
-                    if apply_patch:
-                        patched_disk = self.apply_patch_to_source_file(target_fn, patched_src)
-
                     raw_hash = f"{qual_key}:{exc_type_name}:{strategy}:{time.time_ns()}"
                     surgery_id = "srg_" + hashlib.sha1(raw_hash.encode("utf-8")).hexdigest()[:10]
+                    diff_path = self.synthesize_patch_diff(
+                        func=target_fn,
+                        orig_source=orig_src,
+                        patched_source=patched_src,
+                        surgery_id=surgery_id,
+                    )
+
+                    patched_disk = False
+                    if apply_patch and mode == "safe-fallback":
+                        patched_disk = self.apply_patch_to_source_file(target_fn, patched_src)
+
                     report = SurgeryReport(
                         surgery_id=surgery_id,
                         func_name=target_fn.__name__,
@@ -529,12 +594,16 @@ class AutopoieticImmuneSystem:
                         healed_return_value=healed_out,
                         regression_test_path=test_path_str,
                         source_file_patched=patched_disk,
+                        mode=mode,
+                        patch_diff_path=str(diff_path) if diff_path else None,
                     )
                     self.surgeries.append(report)
                     self.surgeries_file.parent.mkdir(parents=True, exist_ok=True)
                     with self.surgeries_file.open("a", encoding="utf-8") as f:
                         f.write(json.dumps(report.to_dict(), ensure_ascii=False) + "\n")
 
+                    if mode == "shadow-pr":
+                        raise
                     return healed_out
 
             setattr(wrapper, "_overmind_immune_system", self)

@@ -12,17 +12,18 @@ Combines the Centsible Reflex Kernel with 8 Autonomous Runtime & Compiler Pillar
 8. Whole-Repo Call-Graph Ripple Propagator (overmind.hive)
 """
 
+__version__ = "3.1.0"
+
 from overmind.alchemist import AlgorithmicAlchemist, TransmutationReport
 from overmind.chronos import ChronosTimeMachine, ExecutionCassette, SyscallEvent, time_travel
 from overmind.crystallizer import NeuralSymbolicCrystallizer, SymbolicCrystal
-from overmind.hive import CallGraphHive, CallSiteSurgicalFix, FunctionSignatureInfo, HivePropagationReport
+from overmind.hive import CallGraphHive, CallSiteSurgicalFix, FunctionSignatureInfo, HivePropagationReport, RepoSymbolIndex
 from overmind.immune import AutopoieticImmuneSystem, CounterfactualSurgeon, immune
 from overmind.initializer import RepoInitializer
+from overmind.mcp_server import OvermindMCPServer
 from overmind.omniscient import CausalFaultReport, FrameDNA, OmniscientTracer
 from overmind.prover import BehavioralContract, BehavioralInvariantMiner, DifferentialShadowProver
 from overmind.synthesizer import ContractSynthesizer, SynthesisResult, synthesize
-
-__version__ = "3.0.0"
 
 __all__ = [
     "__version__",
@@ -50,5 +51,7 @@ __all__ = [
     "FunctionSignatureInfo",
     "CallSiteSurgicalFix",
     "HivePropagationReport",
+    "RepoSymbolIndex",
     "RepoInitializer",
+    "OvermindMCPServer",
 ]

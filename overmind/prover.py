@@ -14,6 +14,8 @@ Replaces manual Human Code Review with mathematical runtime verification:
 import ast
 import copy
 import inspect
+import math
+import random
 import sys
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -111,6 +113,8 @@ def _infer_param_kind(param_name: str, annotation: Any, func_ast: Optional[ast.F
         return "list"
     if "dict" in ann_str or "mapping" in ann_str:
         return "dict"
+    if "bool" in ann_str:
+        return "bool"
     if "str" in ann_str:
         return "str"
     if "float" in ann_str:
@@ -145,15 +149,101 @@ def _infer_param_kind(param_name: str, annotation: Any, func_ast: Optional[ast.F
         return "list"
     if any(tok in name_low for tok in ("payload", "config", "mapping", "row", "user", "obj", "dict")):
         return "dict"
+    if name_low.startswith(("is_", "has_", "allow", "enable", "flag")):
+        return "bool"
     if any(tok in name_low for tok in ("text", "name", "query", "path", "msg", "str", "token")):
         return "str"
     return "int"
 
 
-def synthesize_domain_inputs(func: Callable, func_ast: Optional[ast.FunctionDef] = None) -> Tuple[List[Tuple[Any, ...]], Dict[int, Tuple[Any, ...]]]:
+def _is_recursive_func_ast(func_ast: Optional[ast.FunctionDef]) -> bool:
+    if func_ast is None:
+        return False
+    for node in ast.walk(func_ast):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == func_ast.name:
+            return True
+    return False
+
+
+def _generate_fuzz_pool(kind: str, rng: random.Random, count: int, is_recursive: bool = False) -> List[Any]:
+    out: List[Any] = []
+    if kind == "bool":
+        for i in range(count):
+            out.append(i % 2 == 0)
+        return out
+
+    if kind == "int":
+        lo, hi = (-3, 12) if is_recursive else (-500, 500)
+        for _ in range(count):
+            out.append(rng.randint(lo, hi))
+        return out
+
+    if kind == "float":
+        edges = [0.0, -0.0, 1.0, -1.0, 0.5, -2.5, 1e-6, 1e4]
+        for i in range(count):
+            if i < len(edges):
+                out.append(edges[i])
+            else:
+                out.append(round(rng.uniform(-250.0, 250.0), 4))
+        return out
+
+    if kind == "str":
+        alphabet = "abcxyz01_ -"
+        edges = ["", " ", "a", "aa", "radar", "level", "hello world", "  OverMind  ", "αβγ"]
+        for i in range(count):
+            if i < len(edges):
+                out.append(edges[i])
+            else:
+                ln = rng.randint(0, 14)
+                out.append("".join(rng.choice(alphabet) for _ in range(ln)))
+        return out
+
+    if kind == "dict":
+        keys_pool = ["id", "value", "count", "name", "tier", "amount", "flag", "k"]
+        edges = [{}, {"id": 0}, {"id": 1, "value": 10}, {"id": 2, "value": 0, "tier": "pro"}]
+        for i in range(count):
+            if i < len(edges):
+                out.append(copy.deepcopy(edges[i]))
+            else:
+                n_keys = rng.randint(0, 5)
+                d: Dict[str, Any] = {}
+                for _ in range(n_keys):
+                    k = rng.choice(keys_pool)
+                    d[k] = rng.choice([0, 1, -3, 42, "pro", "", True])
+                out.append(d)
+        return out
+
+    # Default: list (duplicate-rich, unsorted, negatives, empty, singletons)
+    edges_list = [
+        [],
+        [0],
+        [1],
+        [-1],
+        [1, 1],
+        [2, 2, 2],
+        [3, 1, 2, 1, 3],
+        [-5, 0, 5, -5, 10],
+        [10, 9, 8, 7, 6],
+    ]
+    for i in range(count):
+        if i < len(edges_list):
+            out.append(list(edges_list[i]))
+        else:
+            ln = rng.randint(0, 14)
+            # Draw from compact domain [-6, 10] to stress duplicates & hash collisions
+            out.append([rng.randint(-6, 10) for _ in range(ln)])
+    return out
+
+
+def synthesize_domain_inputs(
+    func: Callable,
+    func_ast: Optional[ast.FunctionDef] = None,
+    fuzz_count: int = 96,
+    seed: int = 42,
+) -> Tuple[List[Tuple[Any, ...]], Dict[int, Tuple[Any, ...]]]:
     """
-    Synthesize a deterministic corpus of boundary/property test inputs and
-    scaling probes (N=10, 40, 160) for a given function signature.
+    Synthesize a deterministic corpus of boundary/property test inputs (100+ cases by default)
+    and scaling probes (N=5, 15, 45) for a given function signature.
     """
     sig = inspect.signature(func)
     params = [
@@ -164,31 +254,50 @@ def synthesize_domain_inputs(func: Callable, func_ast: Optional[ast.FunctionDef]
         return [()], {}
 
     kinds = [_infer_param_kind(p.name, p.annotation, func_ast) for p in params]
+    is_rec = _is_recursive_func_ast(func_ast)
 
     domain_pools: Dict[str, List[Any]] = {
-        "int": [0, 1, -1, 5, 12, -7, 100],
+        "int": [0, 1, -1, 5, 12, -7, 25] if is_rec else [0, 1, -1, 5, 12, -7, 100],
         "float": [0.0, 1.0, -1.5, 10.5, 100.0],
+        "bool": [True, False],
         "str": ["", "a", "overmind", "hello world"],
         "list": [[], [1], [3, 1, 2], [-2, 0, 4, 8], [1, 2, 2, 3, 5]],
         "dict": [{}, {"id": 1, "value": 10}, {"id": 2, "value": 0, "name": "test"}],
     }
 
-    max_cases = 7
     corpus: List[Tuple[Any, ...]] = []
+    seen_reprs: Set[str] = set()
+
+    def _push_case(t_row: Tuple[Any, ...]) -> None:
+        key = repr(t_row)
+        if key not in seen_reprs:
+            seen_reprs.add(key)
+            corpus.append(t_row)
+
+    max_cases = 7
     for i in range(max_cases):
         row = []
         for idx, k in enumerate(kinds):
             pool = domain_pools.get(k, domain_pools["int"])
             val = copy.deepcopy(pool[(i + idx) % len(pool)])
             row.append(val)
-        t_row = tuple(row)
-        if t_row not in corpus:
-            corpus.append(t_row)
+        _push_case(tuple(row))
+
+    if fuzz_count > 0:
+        rng = random.Random(seed)
+        pool_size = fuzz_count * 4
+        per_param_fuzz = [_generate_fuzz_pool(k, rng, pool_size, is_recursive=is_rec) for k in kinds]
+        target_total = max_cases + fuzz_count
+        for i in range(pool_size):
+            if len(corpus) >= target_total:
+                break
+            row = [copy.deepcopy(per_param_fuzz[p_idx][i]) for p_idx in range(len(kinds))]
+            _push_case(tuple(row))
 
     # Synthesize scaling probes for empirical complexity analysis (N = 5, 15, 45 -> 3x scaling)
     scaling_probes: Dict[int, Tuple[Any, ...]] = {}
     for n_size in (5, 15, 45):
-        probe_args = []
+        probe_args: List[Any] = []
         for k in kinds:
             if k == "list":
                 probe_args.append(list(range(n_size, 0, -1)))
@@ -196,6 +305,8 @@ def synthesize_domain_inputs(func: Callable, func_ast: Optional[ast.FunctionDef]
                 probe_args.append("x" * n_size)
             elif k == "dict":
                 probe_args.append({f"k_{j}": j for j in range(n_size)})
+            elif k == "bool":
+                probe_args.append(n_size % 2 == 0)
             else:
                 probe_args.append(n_size)
         scaling_probes[n_size] = tuple(probe_args)
@@ -281,7 +392,11 @@ class BehavioralInvariantMiner:
             tracer = OmniscientTracer(target_funcs={func.__name__}, max_steps_per_frame=100_000)
             _, exc, frames = tracer.run_callable(func, *copy.deepcopy(probe_args))
             if exc is None and frames:
-                scaling_steps[n_size] = sum(f.steps_executed for f in frames if f.func_name == func.__name__)
+                scaling_steps[n_size] = sum(
+                    f.steps_executed
+                    for f in frames
+                    if f.func_name == func.__name__ or f.func_name in ("<genexpr>", "<listcomp>", "<setcomp>", "<dictcomp>")
+                )
 
         complexity = cls._classify_scaling(scaling_steps)
         non_neg = all(v >= 0 for v in numeric_outputs) if numeric_outputs else None
@@ -398,7 +513,29 @@ class DifferentialShadowProver:
                 except Exception as e:
                     new_err = f"{type(e).__name__}({e})"
 
-                if old_err != new_err or (old_err is None and old_val != new_val):
+                if old_err != new_err:
+                    values_equal = False
+                elif old_err is None:
+                    if (
+                        isinstance(old_val, float)
+                        and isinstance(new_val, float)
+                        and math.isnan(old_val)
+                        and math.isnan(new_val)
+                    ):
+                        values_equal = True
+                    elif (type(old_val) is type(new_val)) or (
+                        isinstance(old_val, (int, float))
+                        and isinstance(new_val, (int, float))
+                        and not isinstance(old_val, bool)
+                        and not isinstance(new_val, bool)
+                    ):
+                        values_equal = old_val == new_val
+                    else:
+                        values_equal = False
+                else:
+                    values_equal = True
+
+                if not values_equal:
                     counterexamples.append({
                         "args": repr(args),
                         "old_outcome": old_err if old_err else repr(old_val),

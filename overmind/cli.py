@@ -21,6 +21,7 @@ from overmind.hive import CallGraphHive
 from overmind.immune import AutopoieticImmuneSystem
 from overmind.initializer import RepoInitializer
 from overmind.kernel import CentsibleKernelBridge
+from overmind.mcp_server import OvermindMCPServer
 from overmind.omniscient import OmniscientTracer
 from overmind.prover import BehavioralInvariantMiner, DifferentialShadowProver
 from overmind.scorecard import (
@@ -65,6 +66,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_heal = sub.add_parser("heal", help="Execute a Python script with In-Flight Self-Healing & Counterfactual AST Surgery")
     p_heal.add_argument("script", type=Path, help="Python file to protect and auto-heal on crash")
     p_heal.add_argument("--apply", action="store_true", help="Write verified AST surgery patches back to source file")
+    p_heal.add_argument(
+        "--mode",
+        choices=["safe-fallback", "shadow-pr"],
+        default="safe-fallback",
+        help="Immune policy: 'safe-fallback' hot-swaps in-flight; 'shadow-pr' generates diff/test and re-raises loudly",
+    )
     p_heal.add_argument("--json", action="store_true", help="Output JSON")
 
     # prove (Pillar 3: Behavioral Invariant Miner & Differential Shadow Prover)
@@ -161,6 +168,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_upd = sub.add_parser("update", help="Self-update Overmind to the latest release from GitHub")
     p_upd.add_argument("--json", action="store_true", help="Output JSON")
 
+    # mcp (Zero-Dependency Model Context Protocol Server)
+    p_mcp = sub.add_parser("mcp", help="Run Overmind as a stdio MCP Server for Antigravity, Claude Code & Cursor")
+    p_mcp.add_argument("--root", type=Path, default=None, help="Workspace root directory (default: current directory)")
+
     return parser
 
 
@@ -226,26 +237,40 @@ def main(argv: Optional[List[str]] = None) -> int:
         mod_globals = runpy.run_path(str(script_path), run_name="__overmind_heal__")
         for name, obj in list(mod_globals.items()):
             if inspect.isfunction(obj) and not name.startswith("_"):
-                mod_globals[name] = immune_sys.protect(obj, auto_heal=True, persist_test=True, apply_patch=args.apply)
+                mod_globals[name] = immune_sys.protect(
+                    obj,
+                    auto_heal=True,
+                    persist_test=True,
+                    apply_patch=args.apply,
+                    mode=args.mode,
+                )
                 if hasattr(obj, "__globals__"):
                     obj.__globals__[name] = mod_globals[name]
+        raised_exc: Optional[Exception] = None
         if "main" in mod_globals and callable(mod_globals["main"]):
-            mod_globals["main"]()
+            try:
+                mod_globals["main"]()
+            except Exception as exc:
+                if args.mode != "shadow-pr":
+                    raise
+                raised_exc = exc
         out = {
             "script": str(script_path),
+            "mode": args.mode,
+            "raised_exception": f"{type(raised_exc).__name__}: {raised_exc}" if raised_exc else None,
             "surgeries_performed": len(immune_sys.surgeries),
             "surgeries": [s.to_dict() for s in immune_sys.surgeries],
         }
         if args.json:
             print(json.dumps(out, ensure_ascii=False, indent=2))
         else:
-            print(f"=== Overmind Autopoietic Immune System ({len(immune_sys.surgeries)} surgery/surgeries) ===")
+            print(f"=== Overmind Autopoietic Immune System [{args.mode}] ({len(immune_sys.surgeries)} surgery/surgeries) ===")
             for s in immune_sys.surgeries:
                 print(
                     f"  🩹 Healed {s.func_name}() on {s.exception_type} via [{s.strategy_applied}] "
-                    f"-> returned {s.healed_return_value!r} (Test: {s.regression_test_path})"
+                    f"-> returned {s.healed_return_value!r} (Test: {s.regression_test_path}, Diff: {s.patch_diff_path})"
                 )
-        return 0
+        return 1 if raised_exc is not None else 0
 
     if args.subcommand == "prove":
         if args.mine:
@@ -363,7 +388,11 @@ def main(argv: Optional[List[str]] = None) -> int:
                     if hasattr(obj, "__globals__"):
                         obj.__globals__[name] = mod_globals[name]
             if "main" in mod_globals and callable(mod_globals["main"]):
-                mod_globals["main"]()
+                if inspect.iscoroutinefunction(mod_globals["main"]):
+                    import asyncio
+                    asyncio.run(mod_globals["main"]())
+                else:
+                    mod_globals["main"]()
             cassettes = chronos_local.cassettes
             if args.json:
                 print(json.dumps([c.to_dict() for c in cassettes], ensure_ascii=False, indent=2))
@@ -598,6 +627,10 @@ def main(argv: Optional[List[str]] = None) -> int:
             status_icon = "✅" if ok else "❌"
             print(f"{status_icon} Overmind Self-Update ({install_root}): {msg}")
         return 0 if ok else 1
+
+    if args.subcommand == "mcp":
+        server = OvermindMCPServer(workspace_dir=args.root, facts_path=args.facts_path)
+        return server.serve_stdio()
 
     return 0
 
