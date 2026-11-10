@@ -12,7 +12,7 @@ Upgrades Thauthi from bash command wrappers to a Neural-Symbolic AST Compiler:
   and binds them to the Centsible Reflex Kernel.
 """
 
-from thauthi.safepaths import is_within
+from thauthi.safepaths import check_storage_dir, is_within, write_text_nofollow
 import ast
 import copy
 import hashlib
@@ -266,16 +266,19 @@ class NeuralSymbolicCrystallizer:
         self.registry_file = self.crystals_dir / "registry.json"
 
     def load_registry(self) -> Dict[str, Dict[str, Any]]:
-        if not self.registry_file.exists():
-            return {}
         try:
+            check_storage_dir(self.crystals_dir, self.workspace_dir)
+            if self.registry_file.is_symlink() or not self.registry_file.exists():
+                return {}
             return json.loads(self.registry_file.read_text(encoding="utf-8"))
         except Exception:
             return {}
 
     def save_registry(self, registry: Dict[str, Dict[str, Any]]) -> None:
+        check_storage_dir(self.crystals_dir, self.workspace_dir)
         self.crystals_dir.mkdir(parents=True, exist_ok=True)
-        self.registry_file.write_text(json.dumps(registry, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        check_storage_dir(self.crystals_dir, self.workspace_dir)
+        write_text_nofollow(self.registry_file, json.dumps(registry, ensure_ascii=False, indent=2) + "\n")
 
     def _synthesize_standalone_crystal_cli(
         self,
@@ -284,7 +287,9 @@ class NeuralSymbolicCrystallizer:
         before_pattern: str,
         after_pattern: str,
     ) -> Path:
+        check_storage_dir(self.crystals_dir, self.workspace_dir)
         self.crystals_dir.mkdir(parents=True, exist_ok=True)
+        check_storage_dir(self.crystals_dir, self.workspace_dir)
         tool_path = self.crystals_dir / f"{slug}.py"
         code = f'''#!/usr/bin/env python3
 """
@@ -331,9 +336,8 @@ if __name__ == "__main__":
 '''
         # Compile the whole generated module before persisting it.
         compile(code, filename=str(tool_path), mode="exec")
-        tool_path.write_text(code, encoding="utf-8")
-        st = os.stat(tool_path)
-        os.chmod(tool_path, st.st_mode | stat.S_IEXEC)
+        # Atomic no-follow create with the executable bit set on the open fd (no path-based chmod).
+        write_text_nofollow(tool_path, code, mode=0o755)
         return tool_path
 
     def crystallize_edit(

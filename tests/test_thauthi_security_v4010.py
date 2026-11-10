@@ -75,8 +75,10 @@ def test_crystals_are_workspace_scoped(tmp_path: Path) -> None:
     with pytest.raises(ValueError):
         ca.apply_all_crystals(victim)
     cb = NeuralSymbolicCrystallizer(bridge=_NullBridge(), workspace_dir=ws_b)
-    cb.crystals_dir = ca.crystals_dir
-    cb.registry_file = ca.registry_file
+    # Workspace B received a registry file copied from A (e.g. committed to a shared repo): its entry
+    # carries A's workspace id and must be skipped.
+    cb.crystals_dir.mkdir(parents=True)
+    cb.registry_file.write_text(ca.registry_file.read_text(encoding="utf-8"), encoding="utf-8")
     rep = cb.apply_all_crystals(ws_b)
     assert rep["crystals_skipped_other_workspace"] == ["cr_scoped"]
     assert victim.read_text(encoding="utf-8") == src
