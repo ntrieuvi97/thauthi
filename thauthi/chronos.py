@@ -462,9 +462,10 @@ class ChronosTimeMachine:
                 ev = matching[idx]
                 replay_cursors[boundary_name] = idx + 1
                 return ev
-            if matching:
-                return matching[-1]
-            raise RuntimeError(f"Chronos replay miss: no recorded event for boundary `{boundary_name}` ({args_repr})")
+            # Fail closed: never fall back to the real function or re-serve a stale event.
+            raise RuntimeError(
+                f"Chronos replay miss: no recorded event left for boundary `{boundary_name}` ({args_repr})"
+            )
 
         def _serialize_boundary_return(kind: str, raw_res: Any) -> Any:
             if kind == "uuid4":
@@ -529,9 +530,6 @@ class ChronosTimeMachine:
                             )
                             raise
                     else:
-                        matching = [ev for ev in syscalls_log if ev.boundary == boundary_name]
-                        if not matching:
-                            return await real_fn(*a, **kw)
                         ev = _next_replay_event(boundary_name, repr((a, kw)))
                         if ev.exception_type:
                             raise RuntimeError(f"Replayed {ev.exception_type}: {ev.exception_message}")
@@ -589,9 +587,6 @@ class ChronosTimeMachine:
                         )
                         raise
                 else:
-                    matching = [ev for ev in syscalls_log if ev.boundary == boundary_name]
-                    if not matching:
-                        return real_fn(*a, **kw)
                     ev = _next_replay_event(boundary_name, repr((a, kw)))
                     if ev.exception_type:
                         raise RuntimeError(f"Replayed {ev.exception_type}: {ev.exception_message}")

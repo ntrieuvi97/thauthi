@@ -280,11 +280,14 @@ class NeuralSymbolicCrystallizer:
         tool_path = self.crystals_dir / f"{slug}.py"
         code = f'''#!/usr/bin/env python3
 """
-Thauthi Symbolic AST Crystal: {title}
-Before AST Pattern: {before_pattern}
-After AST Pattern:  {after_pattern}
+Thauthi Symbolic AST Crystal (auto-generated).
 Executes deterministically in <2ms with 0 LLM tokens.
 """
+# Metadata is embedded as single-line repr() literals so caller-controlled text
+# can never terminate a string/comment and inject executable code.
+# Title: {title!r}
+# Before AST Pattern: {before_pattern!r}
+# After AST Pattern: {after_pattern!r}
 
 import argparse
 import json
@@ -318,6 +321,8 @@ def main() -> int:
 if __name__ == "__main__":
     sys.exit(main())
 '''
+        # Compile the whole generated module before persisting it.
+        compile(code, filename=str(tool_path), mode="exec")
         tool_path.write_text(code, encoding="utf-8")
         st = os.stat(tool_path)
         os.chmod(tool_path, st.st_mode | stat.S_IEXEC)
@@ -404,11 +409,19 @@ if __name__ == "__main__":
         dry_run: bool = False,
     ) -> Dict[str, Any]:
         files: List[Path] = []
-        if target_path.is_file() and target_path.suffix == ".py":
+        if target_path.is_file() and target_path.suffix == ".py" and not target_path.is_symlink():
             files.append(target_path)
         elif target_path.is_dir():
+            root_resolved = target_path.resolve()
             for p in sorted(target_path.rglob("*.py")):
                 if any(part in {".git", "__pycache__", ".venv", "venv", ".pytest_cache"} for part in p.parts):
+                    continue
+                # Never follow symlinks or touch files that resolve outside the target workspace.
+                if p.is_symlink():
+                    continue
+                try:
+                    p.resolve().relative_to(root_resolved)
+                except ValueError:
                     continue
                 files.append(p)
 
