@@ -84,6 +84,22 @@ claude plugin marketplace add ntrieuvi97/thauthi
 claude plugin install thauthi
 ```
 
+### OpenClaw users: the optional `thauthi-evolve` hook
+
+Installing the plugin in OpenClaw gives you the **skill** and a hook pack, but the hook is **off until you opt in**
+(OpenClaw reports it as "missing requirements: THAUTHI_OPENCLAW_HOOK"). It runs `thauthi hook stop` on `/new`, `/reset`
+and automatic session reset so the gene pool can evolve. It never reads your transcript, messages or config.
+
+```bash
+openclaw plugins install thauthi            # review and accept the capability prompt
+# opt in (config: hooks.internal.entries.thauthi-evolve):
+#   { "enabled": true, "env": { "THAUTHI_OPENCLAW_HOOK": "on" } }
+openclaw hooks info thauthi-evolve          # should show Environment: ✓ and Binaries: ✓ thauthi
+```
+
+The `thauthi` CLI must be installed separately (`install.sh` or `pip`) and be on the Gateway's `PATH`. Note that naming the
+hook in `hooks.internal.entries` narrows OpenClaw's hook selection to the named hooks. Details: `hooks/thauthi-evolve/HOOK.md`.
+
 ### Step 2: Onboard Any Repository in the World (`thauthi init`)
 ```bash
 cd /path/to/any-repo

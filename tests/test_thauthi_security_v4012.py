@@ -126,3 +126,13 @@ await handler(ev("command", "reset", {{}}));                                    
     assert len(lines) == 1, lines
     args, stdin, cwd = lines[0].split("|")
     assert args == "hook stop" and stdin == "" and Path(cwd).resolve() == ws.resolve()
+
+
+def test_codex_manifest_exposes_hook_pack_and_versions_match() -> None:
+    codex = json.loads((ROOT / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8"))
+    pkg = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))
+    claude = json.loads((ROOT / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
+    assert codex["hooks"] == "./hooks/" and codex["skills"] == "./skills/"
+    assert codex["version"] == pkg["version"] == claude["version"]
+    # Claude Code only accepts *.json hook files here; a directory would break its manifest validation.
+    assert all(h.endswith(".json") for h in ([claude["hooks"]] if isinstance(claude["hooks"], str) else claude["hooks"]))
