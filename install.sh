@@ -71,6 +71,43 @@ if not any("thauthi hook stop" in json.dumps(item) for item in stop_list):
 PYEOF
 echo "✓ Registered Claude Code Global Lifecycle Hook (~/.claude/settings.json)"
 
+# 3. Antigravity MCP server (global ~/.gemini/config/mcp_config.json; per-repo .mcp.json is ignored by Antigravity).
+# --root is the only tree the tools may touch: override with THAUTHI_MCP_ROOT, keep it narrow.
+MCP_ROOT="${THAUTHI_MCP_ROOT:-$HOME/Documents/repos}"
+if [ -d "$MCP_ROOT" ]; then
+THAUTHI_BIN="$LOCAL_BIN/thauthi" THAUTHI_MCP_ROOT="$MCP_ROOT" python3 - <<'PYEOF'
+import json, os
+from pathlib import Path
+
+cfg = Path.home() / ".gemini" / "config" / "mcp_config.json"
+cfg.parent.mkdir(parents=True, exist_ok=True)
+data = {}
+if cfg.exists():
+    try:
+        data = json.loads(cfg.read_text(encoding="utf-8"))
+    except Exception:
+        raise SystemExit(f"! {cfg} is not valid JSON; skipped MCP registration")
+data.setdefault("mcpServers", {})["thauthi"] = {
+    "command": os.environ["THAUTHI_BIN"],
+    "args": ["mcp", "--root", os.environ["THAUTHI_MCP_ROOT"]],
+}
+cfg.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+PYEOF
+echo "✓ Registered Antigravity MCP server (--root $MCP_ROOT)"
+else
+echo "! $MCP_ROOT not found; set THAUTHI_MCP_ROOT and re-run to register the Antigravity MCP server"
+fi
+
+# 4. Make `import thauthi` work from any project: a .pth file in each interpreter's user site-packages.
+# shortcut: user-site .pth only covers interpreters on PATH at install time, re-run after adding one.
+for PY in python3 python3.9 python3.10 python3.11 python3.12 python3.13 python3.14; do
+    command -v "$PY" >/dev/null 2>&1 || continue
+    SITE="$("$PY" -m site --user-site 2>/dev/null)" || continue
+    [ -n "$SITE" ] || continue
+    mkdir -p "$SITE" && printf '%s\n' "$REPO_DIR" > "$SITE/thauthi.pth" \
+        && echo "✓ import thauthi enabled for $PY ($SITE/thauthi.pth)"
+done
+
 export PATH="$LOCAL_BIN:$PATH"
 echo ""
 "$LOCAL_BIN/thauthi" status || true
