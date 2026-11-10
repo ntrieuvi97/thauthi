@@ -16,6 +16,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+# Commands that must never be auto-promoted into agent directives or forged tools:
+# remote fetch/shell, privilege escalation, recursive delete, pipe-to-shell, publishing.
+RISKY_COMMAND_RE = re.compile(
+    r"\b(?:curl|wget|sudo|ssh|scp|nc)\b|\brm\s+-\w*r|\|\s*(?:ba|z)?sh\b|\bgit\s+push\b",
+    re.IGNORECASE,
+)
+
 
 def get_overmind_home() -> Path:
     """Return ~/.overmind or $OVERMIND_HOME."""

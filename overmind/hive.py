@@ -22,6 +22,8 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
+from overmind.srcedit import splice_source
+
 
 @dataclass
 class FunctionSignatureInfo:
@@ -647,8 +649,7 @@ class CallGraphHive:
                 all_fixes.extend(file_fixes)
                 healed_files.append(rel_path)
                 if apply:
-                    new_src = ast.unparse(new_tree) + "\n"
-                    fpath.write_text(new_src, encoding="utf-8")
+                    fpath.write_text(splice_source(orig_src, new_tree), encoding="utf-8")
 
         return HivePropagationReport(
             files_scanned=len(py_files),

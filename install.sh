@@ -25,7 +25,8 @@ else
         git -C "$REPO_DIR" pull --ff-only >/dev/null 2>&1 || true
     else
         echo "• Cloning Overmind 3.0 from $OVERMIND_GIT_URL..."
-        git clone --depth 1 "$OVERMIND_GIT_URL" "$REPO_DIR"
+        # Pin a release: OVERMIND_REF=v3.0.0 ./install.sh  (default: latest main)
+        git clone --depth 1 ${OVERMIND_REF:+--branch "$OVERMIND_REF"} "$OVERMIND_GIT_URL" "$REPO_DIR"
     fi
 fi
 

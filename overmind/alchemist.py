@@ -29,6 +29,7 @@ from overmind.prover import (
     DifferentialShadowProver,
     synthesize_domain_inputs,
 )
+from overmind.srcedit import splice_source
 
 
 @dataclass
@@ -43,10 +44,29 @@ class TransmutationReport:
     proven_equivalent: bool
     original_source: str
     optimized_source: str
+    file_path: Optional[str] = None
     timestamp: float = field(default_factory=time.time)
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
+
+
+IGNORED_SCAN_DIRS = {
+    ".git",
+    ".hg",
+    ".svn",
+    "__pycache__",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    "node_modules",
+    ".venv",
+    "venv",
+    "env",
+    ".overmind",
+    "dist",
+    "build",
+}
 
 
 def _is_recursive_ast(func_node: ast.FunctionDef) -> bool:
@@ -70,6 +90,17 @@ def _collect_assigned_names(nodes: List[ast.stmt]) -> Set[str]:
                 }:
                     assigned.add(sub.func.value.id)
     return assigned
+
+
+def _non_sequence_annotated_params(func_node: ast.FunctionDef) -> Set[str]:
+    """Identify parameters explicitly annotated as str, bytes, dict, or mapping (unsafe for `set(param)`)."""
+    excluded: Set[str] = set()
+    for arg in func_node.args.args:
+        if arg.annotation is not None:
+            ann_src = ast.unparse(arg.annotation).lower()
+            if ann_src in ("str", "bytes", "dict", "bool", "int", "float") or ann_src.startswith(("dict[", "mapping[")):
+                excluded.add(arg.arg)
+    return excluded
 
 
 class _MembershipToSetTransformer(ast.NodeTransformer):
@@ -107,6 +138,18 @@ class _MembershipToSetTransformer(ast.NodeTransformer):
         self._loop_depth -= 1
         return node
 
+    def visit_DictComp(self, node: ast.DictComp) -> ast.AST:
+        self._loop_depth += 1
+        node = self.generic_visit(node)  # type: ignore[assignment]
+        self._loop_depth -= 1
+        return node
+
+    def visit_GeneratorExp(self, node: ast.GeneratorExp) -> ast.AST:
+        self._loop_depth += 1
+        node = self.generic_visit(node)  # type: ignore[assignment]
+        self._loop_depth -= 1
+        return node
+
     def visit_Compare(self, node: ast.Compare) -> ast.AST:
         node = self.generic_visit(node)  # type: ignore[assignment]
         if self._loop_depth > 0 and len(node.ops) == 1 and isinstance(node.ops[0], (ast.In, ast.NotIn)):
@@ -127,7 +170,8 @@ class _MembershipToSetTransformer(ast.NodeTransformer):
 def _transmute_membership_to_set(func_node: ast.FunctionDef) -> Optional[ast.FunctionDef]:
     param_names = {arg.arg for arg in func_node.args.args}
     mutated = _collect_assigned_names(func_node.body)
-    safe_params = param_names - mutated
+    non_seq = _non_sequence_annotated_params(func_node)
+    safe_params = param_names - mutated - non_seq
     if not safe_params:
         return None
 
@@ -150,17 +194,7 @@ def _transmute_membership_to_set(func_node: ast.FunctionDef) -> Optional[ast.Fun
         )
         prefix_stmts.append(assign)
 
-    # Preserve docstring if present
-    if (
-        cloned.body
-        and isinstance(cloned.body[0], ast.Expr)
-        and isinstance(cloned.body[0].value, ast.Constant)
-        and isinstance(cloned.body[0].value.value, str)
-    ):
-        cloned.body = [cloned.body[0]] + prefix_stmts + cloned.body[1:]
-    else:
-        cloned.body = prefix_stmts + cloned.body
-
+    _insert_prefix_preserving_docstring(cloned, prefix_stmts)
     return ast.fix_missing_locations(cloned)
 
 
@@ -362,10 +396,14 @@ class _LoopInvariantHoister(ast.NodeTransformer):
             key = (fn_name, arg_name)
             if key not in self.hoisted:
                 self.hoisted[key] = f"_om_hoist_{fn_name}_{arg_name}"
-            return ast.copy_location(
-                ast.Name(id=self.hoisted[key], ctx=ast.Load()),
-                node,
-            )
+            hoisted_name = ast.Name(id=self.hoisted[key], ctx=ast.Load())
+            if fn_name in ("max", "min"):
+                # Empty sequence: fall back to the original call so it raises the same ValueError.
+                return ast.copy_location(
+                    ast.IfExp(test=ast.Name(id=arg_name, ctx=ast.Load()), body=hoisted_name, orelse=node),
+                    node,
+                )
+            return ast.copy_location(hoisted_name, node)
         return node
 
 
@@ -409,7 +447,109 @@ def _transmute_loop_invariant_calls(func_node: ast.FunctionDef) -> Optional[ast.
             )
         )
 
-    cloned.body = prefix_stmts + cloned.body
+    _insert_prefix_preserving_docstring(cloned, prefix_stmts)
+    return ast.fix_missing_locations(cloned)
+
+
+class _LoopCountToFreqTransformer(ast.NodeTransformer):
+    """
+    Rewrites `seq_b.count(x)` inside loops or comprehensions to use a pre-computed
+    frequency dictionary `_om_freq_<seq_b>.get(x, 0)`, turning O(N^2) count scans into O(N).
+    """
+
+    def __init__(self, safe_params: Set[str]):
+        self.safe_params = safe_params
+        self.freq_vars: Set[str] = set()
+        self._loop_depth = 0
+
+    def visit_For(self, node: ast.For) -> ast.AST:
+        self._loop_depth += 1
+        node = self.generic_visit(node)  # type: ignore[assignment]
+        self._loop_depth -= 1
+        return node
+
+    def visit_While(self, node: ast.While) -> ast.AST:
+        self._loop_depth += 1
+        node = self.generic_visit(node)  # type: ignore[assignment]
+        self._loop_depth -= 1
+        return node
+
+    def visit_ListComp(self, node: ast.ListComp) -> ast.AST:
+        self._loop_depth += 1
+        node = self.generic_visit(node)  # type: ignore[assignment]
+        self._loop_depth -= 1
+        return node
+
+    def visit_SetComp(self, node: ast.SetComp) -> ast.AST:
+        self._loop_depth += 1
+        node = self.generic_visit(node)  # type: ignore[assignment]
+        self._loop_depth -= 1
+        return node
+
+    def visit_DictComp(self, node: ast.DictComp) -> ast.AST:
+        self._loop_depth += 1
+        node = self.generic_visit(node)  # type: ignore[assignment]
+        self._loop_depth -= 1
+        return node
+
+    def visit_GeneratorExp(self, node: ast.GeneratorExp) -> ast.AST:
+        self._loop_depth += 1
+        node = self.generic_visit(node)  # type: ignore[assignment]
+        self._loop_depth -= 1
+        return node
+
+    def visit_Call(self, node: ast.Call) -> ast.AST:
+        node = self.generic_visit(node)  # type: ignore[assignment]
+        if (
+            self._loop_depth > 0
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "count"
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id in self.safe_params
+            and len(node.args) == 1
+            and not node.keywords
+        ):
+            seq_name = node.func.value.id
+            self.freq_vars.add(seq_name)
+            return ast.copy_location(
+                ast.Call(
+                    func=ast.Attribute(
+                        value=ast.Name(id=f"_om_freq_{seq_name}", ctx=ast.Load()),
+                        attr="get",
+                        ctx=ast.Load(),
+                    ),
+                    args=[copy.deepcopy(node.args[0]), ast.Constant(value=0)],
+                    keywords=[],
+                ),
+                node,
+            )
+        return node
+
+
+def _transmute_loop_count_calls(func_node: ast.FunctionDef) -> Optional[ast.FunctionDef]:
+    param_names = {arg.arg for arg in func_node.args.args}
+    mutated = _collect_assigned_names(func_node.body)
+    non_seq = _non_sequence_annotated_params(func_node)
+    safe_params = param_names - mutated - non_seq
+    if not safe_params:
+        return None
+
+    cloned = copy.deepcopy(func_node)
+    transformer = _LoopCountToFreqTransformer(safe_params)
+    cloned = transformer.visit(cloned)  # type: ignore[assignment]
+    if not transformer.freq_vars:
+        return None
+
+    freq_prefix: List[ast.stmt] = []
+    for v in sorted(transformer.freq_vars):
+        freq_prefix.extend(
+            ast.parse(
+                f"_om_freq_{v} = {{}}\n"
+                f"for _om_el in {v}:\n"
+                f"    _om_freq_{v}[_om_el] = _om_freq_{v}.get(_om_el, 0) + 1\n"
+            ).body
+        )
+    _insert_prefix_preserving_docstring(cloned, freq_prefix)
     return ast.fix_missing_locations(cloned)
 
 
@@ -431,13 +571,9 @@ def _transmute_recursive_memoization(func_node: ast.FunctionDef) -> Optional[ast
             return None
 
     cloned = copy.deepcopy(func_node)
-    inner_name = f"_om_inner_{func_node.name}"
 
-    # Rename recursive self-calls inside the inner body ONLY if we want inner recursion,
-    # OR keep calling `func_node.name` and store `_om_memo` as a default mutable kwarg or function attribute!
-    # Storing `_om_memo = getattr(func_name, "_om_memo", None)` on the function object itself means
-    # every recursive call `func_name(...)` automatically hits the exact same cache AND
-    # `OmniscientTracer` traces `func_name` directly!
+    # Storing `_om_memo` on the function object itself means every recursive call
+    # `func_name(...)` hits the exact same cache AND `OmniscientTracer` traces `func_name` directly!
     key_expr: ast.expr
     if len(param_names) == 1:
         key_expr = ast.Name(id=param_names[0], ctx=ast.Load())
@@ -509,8 +645,40 @@ def _transmute_recursive_memoization(func_node: ast.FunctionDef) -> Optional[ast
         elif res is not None:
             transformed_body.append(res)
 
-    cloned.body = preamble_tree.body + [check_cache_if] + transformed_body
+    cloned.body = transformed_body
+    _insert_prefix_preserving_docstring(cloned, preamble_tree.body + [check_cache_if])
     return ast.fix_missing_locations(cloned)
+
+
+def _build_module_source_with_func(
+    tree: ast.Module,
+    func_name: str,
+    replacement_func: ast.FunctionDef,
+) -> str:
+    """
+    Construct a full module source string that preserves module docstrings,
+    `from __future__ import ...` directives, module-level imports, constants,
+    type aliases, classes, and helper functions while substituting `func_name`
+    with `replacement_func`.
+    """
+    new_body: List[ast.stmt] = []
+    replaced = False
+    for idx, stmt in enumerate(tree.body):
+        if isinstance(stmt, ast.FunctionDef) and stmt.name == func_name:
+            new_body.append(copy.deepcopy(replacement_func))
+            replaced = True
+        elif isinstance(stmt, ast.Expr):
+            if idx == 0 and isinstance(stmt.value, ast.Constant) and isinstance(stmt.value.value, str):
+                new_body.append(copy.deepcopy(stmt))
+        else:
+            new_body.append(copy.deepcopy(stmt))
+
+    if not replaced:
+        new_body.append(copy.deepcopy(replacement_func))
+
+    mod = ast.Module(body=new_body, type_ignores=[])
+    ast.fix_missing_locations(mod)
+    return ast.unparse(mod) + "\n"
 
 
 class AlgorithmicAlchemist:
@@ -534,6 +702,10 @@ class AlgorithmicAlchemist:
 
         for strat_name, c_eq in _transmute_nested_equality_loop(func_node):
             candidates.append((strat_name, c_eq))
+
+        c_count = _transmute_loop_count_calls(func_node)
+        if c_count is not None:
+            candidates.append(("loop_count_to_frequency_map", c_count))
 
         c_hoist = _transmute_loop_invariant_calls(func_node)
         if c_hoist is not None:
@@ -561,6 +733,7 @@ class AlgorithmicAlchemist:
 
         reports: List[TransmutationReport] = []
         updated_func_asts: Dict[str, ast.FunctionDef] = {}
+        file_path_str = str(source_path.resolve()) if source_path is not None else None
 
         for func_name, orig_fn in funcs.items():
             orig_ast = asts[func_name]
@@ -574,16 +747,29 @@ class AlgorithmicAlchemist:
                 custom_inputs = [(0,), (1,), (2,), (5,), (8,), (10,)]
 
             orig_single_src = ast.unparse(orig_ast)
+            orig_module_src = _build_module_source_with_func(tree, func_name, orig_ast)
 
             for strat_name, cand_ast in candidates:
                 cand_single_src = ast.unparse(cand_ast)
                 if cand_single_src.strip() == orig_single_src.strip():
                     continue
 
+                cand_module_src = _build_module_source_with_func(tree, func_name, cand_ast)
+
                 if is_rec:
                     # For recursive functions, avoid passing N=100 or N=45 to unmemoized original if it explodes
-                    cand_funcs, _ = DifferentialShadowProver._compile_functions(cand_single_src, "alchemist_cand", source_path=source_path)
-                    cand_fn = cand_funcs[func_name]
+                    try:
+                        cand_funcs, _ = DifferentialShadowProver._compile_functions(
+                            cand_module_src,
+                            "alchemist_cand",
+                            source_path=source_path,
+                        )
+                        cand_fn = cand_funcs.get(func_name)
+                    except Exception:
+                        cand_fn = None
+                    if cand_fn is None:
+                        continue
+
                     eq_ok = True
                     for test_args in [(0,), (1,), (2,), (3,), (5,), (8,), (12,)]:
                         try:
@@ -617,17 +803,23 @@ class AlgorithmicAlchemist:
                             proven_equivalent=True,
                             original_source=orig_single_src,
                             optimized_source=cand_single_src,
+                            file_path=file_path_str,
                         )
                         reports.append(rep)
                         self.transmutations.append(rep)
                         updated_func_asts[func_name] = cand_ast
                         break
                 else:
-                    proof = DifferentialShadowProver.prove_equivalence(
-                        orig_single_src,
-                        cand_single_src,
-                        custom_inputs=custom_inputs,
-                    )
+                    try:
+                        proof = DifferentialShadowProver.prove_equivalence(
+                            orig_module_src,
+                            cand_module_src,
+                            custom_inputs=custom_inputs,
+                            source_path=source_path,
+                            target_funcs={func_name},
+                        )
+                    except Exception:
+                        continue
                     if not proof.passed or not proof.results:
                         continue
 
@@ -640,11 +832,19 @@ class AlgorithmicAlchemist:
                     old_rank = COMPLEXITY_RANK.get(old_c, 0)
                     new_rank = COMPLEXITY_RANK.get(new_c, 0)
 
-                    # Account for C-level O(N) sequence operations (e.g. `x in list` or hoisted `max(list)`)
+                    # Account for C-level O(N) sequence operations (e.g. `x in list`, `list.count(x)`, or hoisted `max(list)`)
                     # which execute inside a single Python line in `sys.settrace` but perform N=45 C-level ops per iteration.
                     effective_old_s45 = old_s45
                     effective_old_c = old_c
-                    if strat_name in ("nested_membership_to_hash_set", "loop_invariant_call_hoisting") and old_s45 >= 45:
+                    if (
+                        strat_name
+                        in (
+                            "nested_membership_to_hash_set",
+                            "loop_count_to_frequency_map",
+                            "loop_invariant_call_hoisting",
+                        )
+                        and old_s45 >= 45
+                    ):
                         effective_old_s45 = old_s45 + (45 * 45)
                         effective_old_c = "O(N^2)+"
                         old_rank = COMPLEXITY_RANK["O(N^2)+"]
@@ -666,6 +866,7 @@ class AlgorithmicAlchemist:
                             proven_equivalent=True,
                             original_source=orig_single_src,
                             optimized_source=cand_single_src,
+                            file_path=file_path_str,
                         )
                         reports.append(rep)
                         self.transmutations.append(rep)
@@ -675,23 +876,81 @@ class AlgorithmicAlchemist:
         if not updated_func_asts:
             return source_code, []
 
-        class _FuncReplacer(ast.NodeTransformer):
-            def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.AST:
-                if node.name in updated_func_asts:
-                    return updated_func_asts[node.name]
-                return node
+        new_tree_body: List[ast.stmt] = []
+        for stmt in tree.body:
+            if isinstance(stmt, ast.FunctionDef) and stmt.name in updated_func_asts:
+                new_tree_body.append(updated_func_asts[stmt.name])
+            else:
+                new_tree_body.append(stmt)
 
-        new_tree = ast.fix_missing_locations(_FuncReplacer().visit(tree))
-        new_full_source = ast.unparse(new_tree) + "\n"
+        new_tree = ast.fix_missing_locations(ast.Module(body=new_tree_body, type_ignores=[]))
+        new_full_source = splice_source(source_code, new_tree)
         self._persist_reports(reports)
         return new_full_source, reports
 
     def optimize_file(self, file_path: Path, apply: bool = False) -> Tuple[str, List[TransmutationReport]]:
-        src = file_path.read_text(encoding="utf-8")
-        new_src, reports = self.optimize_source(src, source_path=file_path)
+        resolved = file_path.resolve()
+        if resolved.is_dir():
+            all_reports: List[TransmutationReport] = []
+            for p in sorted(resolved.rglob("*.py")):
+                rel_parts = p.relative_to(resolved).parts
+                if any(part in IGNORED_SCAN_DIRS for part in rel_parts):
+                    continue
+                try:
+                    _, f_reports = self.optimize_file(p, apply=apply)
+                    all_reports.extend(f_reports)
+                except Exception:
+                    continue
+            return "", all_reports
+
+        src = resolved.read_text(encoding="utf-8")
+        new_src, reports = self.optimize_source(src, source_path=resolved)
         if apply and reports:
-            file_path.write_text(new_src, encoding="utf-8")
+            resolved.write_text(new_src, encoding="utf-8")
         return new_src, reports
+
+    def optimize_directory(self, dir_path: Path, apply: bool = False) -> Dict[str, Any]:
+        root = dir_path.resolve()
+        if root.is_file():
+            new_src, reports = self.optimize_file(root, apply=apply)
+            return {
+                "target": str(root),
+                "file": str(root),
+                "applied": apply,
+                "files_scanned": 1,
+                "files_optimized": [str(root)] if reports else [],
+                "transmutations_count": len(reports),
+                "transmutations": [r.to_dict() for r in reports],
+                "optimized_source": new_src,
+            }
+
+        py_files: List[Path] = []
+        for p in sorted(root.rglob("*.py")):
+            rel_parts = p.relative_to(root).parts
+            if any(part in IGNORED_SCAN_DIRS for part in rel_parts):
+                continue
+            py_files.append(p)
+
+        files_optimized: List[str] = []
+        all_reports: List[TransmutationReport] = []
+        for fpath in py_files:
+            try:
+                _, f_reports = self.optimize_file(fpath, apply=apply)
+            except Exception:
+                continue
+            if f_reports:
+                files_optimized.append(str(fpath))
+                all_reports.extend(f_reports)
+
+        return {
+            "target": str(root),
+            "file": str(root),
+            "applied": apply,
+            "files_scanned": len(py_files),
+            "files_optimized": files_optimized,
+            "transmutations_count": len(all_reports),
+            "transmutations": [r.to_dict() for r in all_reports],
+        }
 
     def _persist_reports(self, reports: List[TransmutationReport]) -> None:
         if not reports:

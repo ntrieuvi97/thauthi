@@ -20,7 +20,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from overmind.kernel import CentsibleKernelBridge, get_overmind_home
+from overmind.kernel import RISKY_COMMAND_RE, CentsibleKernelBridge, get_overmind_home
 
 TRIVIAL_COMMAND_HEADS = {
     # Navigation & standard inspection
@@ -51,6 +51,10 @@ def is_trivial_or_meta_step(cmd: str) -> bool:
     """Determine whether a command step is trivial noise or agent meta-infrastructure."""
     clean = _normalize_command(cmd)
     if not clean:
+        return True
+
+    # 0. Never mine risky commands (remote fetch, sudo, rm -r, pipe-to-shell) into tools
+    if RISKY_COMMAND_RE.search(clean):
         return True
 
     # 1. Check for agent meta-infrastructure patterns
@@ -367,16 +371,19 @@ def _render_tool_source(candidate: ToolCandidate, workspace_dir: Optional[Path] 
     clean_steps = [_generalize_step_paths(s, workspace_dir) for s in candidate.steps]
     steps_json = json.dumps(clean_steps, ensure_ascii=False, indent=4)
     now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    # json.dumps: title/trigger come from transcripts or CLI input and must stay a string literal
+    docstring = json.dumps(
+        f"{candidate.title}\n"
+        f"Auto-forged by Overmind Autopoietic Tool Forge at {now}.\n"
+        f"Trigger Pattern: {candidate.trigger_pattern}\n"
+        f"Occurrences Observed: {candidate.occurrences}"
+    )
     return f'''#!/usr/bin/env python3
-"""
-{candidate.title}
-Auto-forged by Overmind Autopoietic Tool Forge at {now}.
-Trigger Pattern: {candidate.trigger_pattern}
-Occurrences Observed: {candidate.occurrences}
-"""
+{docstring}
 
 import argparse
 import json
+import shlex
 import subprocess
 import sys
 import time
@@ -407,7 +414,7 @@ def run_pipeline(
     for idx, cmd in enumerate(PIPELINE_STEPS, start=1):
         effective_cmd = cmd
         if extra_args and idx == len(PIPELINE_STEPS):
-            effective_cmd = f"{{cmd}} {{' '.join(extra_args)}}"
+            effective_cmd = f"{{cmd}} {{shlex.join(extra_args)}}"
 
         t0 = time.monotonic()
         proc = subprocess.run(
@@ -585,16 +592,6 @@ class AutopoieticToolForge:
         if len(directive) > 235:
             directive = directive[:232].rstrip() + "..."
 
-        if bind_to_centsible:
-            self.bridge.add_fact(
-                pattern=candidate.trigger_pattern,
-                fact=directive,
-                category="forged-tool",
-                fact_id=fact_id,
-                est_savings=candidate.estimated_token_savings,
-                force=True,
-            )
-
         reg = self.load_registry()
         entry = {
             **candidate.to_dict(),
@@ -602,10 +599,31 @@ class AutopoieticToolForge:
             "fact_id": fact_id,
             "directive": directive,
             "verified": True,
+            "bound": False,
             "verification_detail": msg,
             "forged_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         }
         reg[candidate.slug] = entry
+        self._save_registry(reg)
+        if bind_to_centsible:
+            entry = self.approve_tool(candidate.slug)
+        return entry
+
+    def approve_tool(self, slug: str) -> Dict[str, Any]:
+        """Bind a forged tool's `MUST RUN` directive into the Centsible kernel (human approval step)."""
+        reg = self.load_registry()
+        entry = reg.get(slug)
+        if entry is None:
+            raise KeyError(f"No forged tool named '{slug}' in registry")
+        self.bridge.add_fact(
+            pattern=entry["trigger_pattern"],
+            fact=entry["directive"],
+            category="forged-tool",
+            fact_id=entry["fact_id"],
+            est_savings=entry["estimated_token_savings"],
+            force=True,
+        )
+        entry["bound"] = True
         self._save_registry(reg)
         return entry
 
@@ -615,15 +633,19 @@ class AutopoieticToolForge:
         min_occurrences: int = 2,
         max_tools: int = 5,
         workspace_dir: Optional[Path] = None,
+        bind_to_centsible: bool = True,
     ) -> List[Dict[str, Any]]:
         """
         Mine a transcript file and automatically forge + verify the top recurring pipelines.
+        Pass `bind_to_centsible=False` (unattended hooks) to leave tools pending `approve_tool`.
         """
         cmd_steps = extract_commands_from_transcript(transcript_path)
         candidates = mine_candidates(cmd_steps, min_occurrences=min_occurrences)
         forged: List[Dict[str, Any]] = []
         for cand in candidates[:max_tools]:
-            forged.append(self.forge_candidate(cand, workspace_dir=workspace_dir))
+            forged.append(
+                self.forge_candidate(cand, bind_to_centsible=bind_to_centsible, workspace_dir=workspace_dir)
+            )
         return forged
 
     def forge_custom_pipeline(

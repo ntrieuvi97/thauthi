@@ -444,18 +444,87 @@ class DifferentialShadowProver:
     ) -> Tuple[Dict[str, Callable], Dict[str, ast.FunctionDef]]:
         fname = str(source_path.resolve()) if source_path else f"<omniscient_{label}>"
         tree = ast.parse(source_code, filename=fname)
-        code_obj = compile(tree, filename=fname, mode="exec")
+
+        # Keep only module-level declarations (imports, defs, classes, assignments, and
+        # `if`/`try` blocks reduced to the same) so script-level calls and loops never run.
+        # shortcut: imports, assignment right-hand sides and the fuzzed function bodies still
+        # execute, so this is NOT a sandbox; isolate in an OS-level sandbox for untrusted code.
+        decl_types = (
+            ast.Import, ast.ImportFrom, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef,
+            ast.Assign, ast.AnnAssign, ast.AugAssign,
+        )
+
+        def _declarations_only(stmts: List[ast.stmt]) -> List[ast.stmt]:
+            kept: List[ast.stmt] = []
+            for stmt in stmts:
+                if isinstance(stmt, decl_types):
+                    kept.append(stmt)
+                elif isinstance(stmt, (ast.If, ast.Try)):
+                    stmt.body = _declarations_only(stmt.body) or [ast.Pass()]
+                    stmt.orelse = _declarations_only(stmt.orelse)
+                    for handler in getattr(stmt, "handlers", []):
+                        handler.body = _declarations_only(handler.body) or [ast.Pass()]
+                    if isinstance(stmt, ast.Try):
+                        stmt.finalbody = _declarations_only(stmt.finalbody)
+                    kept.append(stmt)
+                elif isinstance(stmt, (ast.With, ast.AsyncWith)):
+                    # Keep imports guarded by e.g. `with contextlib.suppress(ImportError):`
+                    # without running the context-manager expression itself.
+                    inner = _declarations_only(stmt.body)
+                    if inner:
+                        swallow = ast.ExceptHandler(
+                            type=ast.Name(id="Exception", ctx=ast.Load()), name=None, body=[ast.Pass()]
+                        )
+                        kept.append(ast.Try(body=inner, handlers=[swallow], orelse=[], finalbody=[]))
+            return kept
+
+        clean_body: List[ast.stmt] = _declarations_only(tree.body)
+        future_imports: List[ast.stmt] = [
+            s for s in clean_body if isinstance(s, ast.ImportFrom) and s.module == "__future__"
+        ]
+
+        exec_tree = ast.Module(body=clean_body, type_ignores=[])
+        ast.fix_missing_locations(exec_tree)
+
         ns: Dict[str, Any] = {"__name__": f"__omniscient_{label}__", "__file__": fname}
         added_paths: List[str] = []
         if source_path is not None:
             resolved_dir = source_path.resolve().parent
-            for cand_dir in (resolved_dir, resolved_dir.parent):
+            # Walk up through `__init__.py` dirs so relative imports (`from ..utils import x`)
+            # resolve against the real package instead of silently dropping the names.
+            pkg_parts: List[str] = []
+            pkg_root = resolved_dir
+            while (pkg_root / "__init__.py").exists():
+                pkg_parts.insert(0, pkg_root.name)
+                pkg_root = pkg_root.parent
+            if pkg_parts:
+                ns["__package__"] = ".".join(pkg_parts)
+            cand_dirs = [resolved_dir, *list(resolved_dir.parents)[:3], pkg_root]
+            for cand_dir in cand_dirs:
                 c_str = str(cand_dir)
                 if c_str not in sys.path:
                     sys.path.insert(0, c_str)
                     added_paths.append(c_str)
         try:
-            exec(code_obj, ns)
+            try:
+                code_obj = compile(exec_tree, filename=fname, mode="exec")
+                exec(code_obj, ns)
+            except Exception:
+                # Resilient statement-by-statement fallback (preserves __future__ imports)
+                # so one failing optional import or top-level env lookup doesn't drop all functions.
+                for stmt in clean_body:
+                    if isinstance(stmt, ast.ImportFrom) and stmt.module == "__future__":
+                        continue
+                    stmt_mod = ast.Module(
+                        body=[*copy.deepcopy(future_imports), copy.deepcopy(stmt)],
+                        type_ignores=[],
+                    )
+                    ast.fix_missing_locations(stmt_mod)
+                    try:
+                        stmt_code = compile(stmt_mod, filename=fname, mode="exec")
+                        exec(stmt_code, ns)
+                    except Exception:
+                        continue
         finally:
             for p_str in added_paths:
                 if p_str in sys.path:
@@ -475,11 +544,19 @@ class DifferentialShadowProver:
         old_source: str,
         new_source: str,
         custom_inputs: Optional[List[Tuple[Any, ...]]] = None,
+        source_path: Optional[Path] = None,
+        before_path: Optional[Path] = None,
+        after_path: Optional[Path] = None,
+        target_funcs: Optional[Set[str]] = None,
     ) -> DifferentialProofReport:
-        old_funcs, old_asts = cls._compile_functions(old_source, "old")
-        new_funcs, new_asts = cls._compile_functions(new_source, "new")
+        old_funcs, old_asts = cls._compile_functions(old_source, "old", source_path=before_path or source_path)
+        new_funcs, new_asts = cls._compile_functions(new_source, "new", source_path=after_path or source_path)
 
-        shared_names = [name for name in old_funcs if name in new_funcs]
+        shared_names = [
+            name
+            for name in old_funcs
+            if name in new_funcs and (target_funcs is None or name in target_funcs)
+        ]
         results: List[FunctionProofResult] = []
         all_passed = True
 

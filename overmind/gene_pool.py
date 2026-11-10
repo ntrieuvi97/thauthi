@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from overmind.kernel import CentsibleKernelBridge, get_overmind_home
+from overmind.kernel import RISKY_COMMAND_RE, CentsibleKernelBridge, get_overmind_home
 
 DEFAULT_MIN_TRIALS = 5
 ELITE_FITNESS_THRESHOLD = 72.0
@@ -381,6 +381,20 @@ class DarwinianGenePool:
                 rec = json.loads(line)
                 pattern = rec.get("pattern")
                 directive = rec.get("directive") or rec.get("fact")
+                if not (isinstance(pattern, str) and isinstance(directive, str)):
+                    continue
+                # Trust boundary: DNA files come from repos/PRs. Reject catch-all triggers
+                # (would fire on every prompt), oversized directives and risky commands.
+                try:
+                    compiled = re.compile(pattern, re.IGNORECASE)
+                except re.error:
+                    continue
+                if (
+                    any(compiled.search(probe) for probe in ("", "a", " ", "~"))
+                    or len(directive) > 235
+                    or RISKY_COMMAND_RE.search(directive)
+                ):
+                    continue
                 if pattern and directive:
                     gid = rec.get("gene_id") or rec.get("id")
                     self.bridge.add_fact(

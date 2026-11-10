@@ -43,8 +43,9 @@ overmind prove --before old_version.py --after new_version.py
 overmind crystallize --name safe_dict_get --before "data[key]" --after "data.get(key, None)"
 overmind crystallize --apply .
 
-# 5. Algorithmic Alchemist (Autonomous O(N^2)->O(N) & O(2^N)->O(N) Optimizer)
+# 5. Algorithmic Alchemist (Autonomous O(N^2)->O(N) & O(2^N)->O(N) Optimizer for File or Directory)
 overmind optimize slow_module.py --apply
+overmind optimize . --apply
 
 # 6. Chronos I/O Virtualization & Time-Travel Replay
 overmind chronos --script stateful_worker.py

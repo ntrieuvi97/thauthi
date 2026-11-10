@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from overmind.kernel import CentsibleKernelBridge
+from overmind.srcedit import splice_source
 
 BUILTIN_ANCHORS = {
     "len", "range", "enumerate", "zip", "map", "filter", "sorted", "reversed",
@@ -390,7 +391,7 @@ if __name__ == "__main__":
         if applier.replacements_count == 0:
             return source_code, 0
         ast.fix_missing_locations(new_tree)
-        new_source = ast.unparse(new_tree) + "\n"
+        new_source = splice_source(source_code, new_tree)
         # Verify syntax compilation before returning
         compile(new_source, filename="<crystal_verified>", mode="exec")
         return new_source, applier.replacements_count

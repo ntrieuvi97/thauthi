@@ -7,7 +7,7 @@ name = "overmind-os"
 version = "3.1.0"
 description = "Overmind 3.0: The Post-Developer Singularity Kernel — Omniscient Runtime Tracer, In-Flight Self-Healing AST Surgery, Differential Shadow Prover, Symbolic AST Crystals, Autonomous O(N^2)->O(N) Alchemist, Chronos I/O Time-Travel, CEGIS Program Synthesizer & Whole-Repo Call-Graph Hive."
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 license = {text = "MIT"}
 authors = [
     {name = "Overmind Contributors"}

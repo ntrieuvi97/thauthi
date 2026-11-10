@@ -94,8 +94,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     # optimize (Pillar 5: Algorithmic Alchemist — Autonomous O(N^2)->O(N) & O(2^N)->O(N))
     p_opt = sub.add_parser("optimize", help="Autonomous O(N^2)->O(N) & O(2^N)->O(N) AST performance optimizer with equivalence proof")
-    p_opt.add_argument("file", type=Path, help="Python file to optimize and prove")
-    p_opt.add_argument("--apply", action="store_true", help="Write proven AST optimizations back to source file")
+    p_opt.add_argument("file", nargs="?", type=Path, default=Path("."), help="Python file or directory to optimize and prove (default: current directory)")
+    p_opt.add_argument("--apply", action="store_true", help="Write proven AST optimizations back to source file(s)")
     p_opt.add_argument("--json", action="store_true", help="Output JSON")
 
     # chronos (Pillar 6: Deterministic I/O Virtualization & Time-Travel Replay)
@@ -135,6 +135,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_forge.add_argument("--trigger", type=str, default=None, help="Optional regex trigger for Centsible auto-injection")
     p_forge.add_argument("--min-occurrences", type=int, default=2, help="Min occurrences in transcript to forge")
     p_forge.add_argument("--list", action="store_true", help="List all forged and verified tools")
+    p_forge.add_argument("--approve", type=str, default=None, metavar="SLUG", help="Bind a pending hook-forged tool's directive into the kernel")
     p_forge.add_argument("--prune", action="store_true", help="Prune noisy, obsolete, or dead forged tools")
     p_forge.add_argument("--slug", type=str, default=None, help="Specific tool slug to prune")
     p_forge.add_argument("--dead", action="store_true", help="Prune unapplied or unverified tools")
@@ -291,7 +292,12 @@ def main(argv: Optional[List[str]] = None) -> int:
         if args.before and args.after:
             old_src = args.before.read_text(encoding="utf-8")
             new_src = args.after.read_text(encoding="utf-8")
-            report = DifferentialShadowProver.prove_equivalence(old_src, new_src)
+            report = DifferentialShadowProver.prove_equivalence(
+                old_src,
+                new_src,
+                before_path=args.before,
+                after_path=args.after,
+            )
             if args.json:
                 print(json.dumps(report.to_dict(), ensure_ascii=False, indent=2))
             else:
@@ -345,19 +351,47 @@ def main(argv: Optional[List[str]] = None) -> int:
         parser.error("Provide --name NAME --before ... --after ..., --apply PATH, or --list")
 
     if args.subcommand == "optimize":
-        target_file = args.file.resolve()
-        alchemist = AlgorithmicAlchemist(storage_dir=target_file.parent / ".overmind")
-        new_src, reports = alchemist.optimize_file(target_file, apply=args.apply)
+        target_path = args.file.resolve()
+        if target_path.is_dir():
+            alchemist = AlgorithmicAlchemist(storage_dir=target_path / ".overmind")
+            payload = alchemist.optimize_directory(target_path, apply=args.apply)
+            if args.json:
+                print(json.dumps(payload, ensure_ascii=False, indent=2))
+            else:
+                print(
+                    f"=== Overmind Algorithmic Alchemist: {target_path.name} "
+                    f"({payload['files_scanned']} file(s) scanned, {payload['transmutations_count']} optimization(s)) ==="
+                )
+                for r_dict in payload["transmutations"]:
+                    rel_f = r_dict.get("file_path") or ""
+                    try:
+                        if rel_f:
+                            rel_f = str(Path(rel_f).resolve().relative_to(target_path)) + ":"
+                    except ValueError:
+                        rel_f = f"{Path(rel_f).name}:"
+                    print(
+                        f"  🧪 {rel_f}{r_dict['func_name']}() [{r_dict['strategy']}]: "
+                        f"{r_dict['old_complexity']} -> {r_dict['new_complexity']} "
+                        f"(Steps: {r_dict['old_steps_n45']} -> {r_dict['new_steps_n45']}, "
+                        f"Speedup: {r_dict['speedup_ratio']}x, Proven Equivalent: ✅)"
+                    )
+            return 0
+
+        alchemist = AlgorithmicAlchemist(storage_dir=target_path.parent / ".overmind")
+        new_src, reports = alchemist.optimize_file(target_path, apply=args.apply)
         payload = {
-            "file": str(target_file),
+            "target": str(target_path),
+            "file": str(target_path),
             "applied": args.apply,
+            "files_scanned": 1,
+            "files_optimized": [str(target_path)] if reports else [],
             "transmutations_count": len(reports),
             "transmutations": [r.to_dict() for r in reports],
         }
         if args.json:
             print(json.dumps(payload, ensure_ascii=False, indent=2))
         else:
-            print(f"=== Overmind Algorithmic Alchemist: {target_file.name} ({len(reports)} optimization(s)) ===")
+            print(f"=== Overmind Algorithmic Alchemist: {target_path.name} ({len(reports)} optimization(s)) ===")
             for r in reports:
                 print(
                     f"  🧪 {r.func_name}() [{r.strategy}]: {r.old_complexity} -> {r.new_complexity} "
@@ -481,7 +515,19 @@ def main(argv: Optional[List[str]] = None) -> int:
             else:
                 print(f"=== Autopoietic Forged Tools ({len(reg)}) ===")
                 for slug, info in reg.items():
-                    print(f"• {slug}: {info.get('title')} -> {info.get('tool_path')}")
+                    pending = "" if info.get("bound", True) else f" [PENDING: overmind forge --approve {slug}]"
+                    print(f"• {slug}: {info.get('title')} -> {info.get('tool_path')}{pending}")
+            return 0
+
+        if args.approve:
+            try:
+                entry = forge.approve_tool(args.approve)
+            except KeyError as exc:
+                parser.error(str(exc.args[0]))
+            if args.json:
+                print(json.dumps(entry, ensure_ascii=False, indent=2))
+            else:
+                print(f"🔗 Approved {entry['slug']}: bound to Centsible fact [{entry['fact_id']}]")
             return 0
 
         if getattr(args, "prune", False) or getattr(args, "slug", None) or (getattr(args, "all", False) and args.subcommand == "forge"):
@@ -588,7 +634,8 @@ def main(argv: Optional[List[str]] = None) -> int:
             t_path = Path(str(t_path_str)).expanduser()
             if t_path.exists():
                 forge = AutopoieticToolForge(bridge=bridge)
-                forge.forge_from_transcript(t_path, min_occurrences=2)
+                # Unattended: forge only. A human binds the directive via `overmind forge --approve`.
+                forge.forge_from_transcript(t_path, min_occurrences=2, bind_to_centsible=False)
 
         sys.stdout.write("{}\n")
         sys.stdout.flush()

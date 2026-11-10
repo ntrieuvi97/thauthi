@@ -481,3 +481,200 @@ def test_phase1_init_scaffolds_mcp_configs_without_clobbering(tmp_path: Path) ->
     assert "custom_server" in root_mcp["mcpServers"]
     assert root_mcp["mcpServers"]["overmind"] == {"command": "overmind", "args": ["mcp", "--root", "."]}
     assert cursor_mcp["mcpServers"]["overmind"] == {"command": "overmind", "args": ["mcp", "--root", "."]}
+
+
+def test_alchemist_preserves_future_annotations_module_imports_helpers_and_docstrings(tmp_path: Path) -> None:
+    # Sibling helper module imported by target module
+    (tmp_path / "math_helpers.py").write_text(
+        "SCALE_FACTOR = 2\ndef scale_val(x: int) -> int:\n    return x * SCALE_FACTOR\n",
+        encoding="utf-8",
+    )
+
+    target_mod = tmp_path / "annotated_service.py"
+    target_mod.write_text(
+        textwrap.dedent(
+            """\
+            \"\"\"Module docstring before __future__ import.\"\"\"
+            from __future__ import annotations
+
+            import math
+            from typing import List, Optional, Sequence
+            from math_helpers import scale_val
+
+            OFFSET = 1
+
+            def _local_helper(v: int) -> int:
+                return scale_val(v) + int(math.floor(OFFSET))
+
+            class DummyContainer:
+                def filter_shared(self, a: List[int], b: List[int]) -> List[int]:
+                    # Class method with the same name must NOT be clobbered by top-level replacer
+                    return []
+
+            def filter_shared(
+                candidates: List[int],
+                allowed: Sequence[int],
+            ) -> list[int] | None:
+                \"\"\"Keep candidates present in allowed and transform via module helpers.\"\"\"
+                out: List[int] = []
+                for item in candidates:
+                    if item in allowed:
+                        out.append(_local_helper(item))
+                return out
+
+            def count_query_hits(queries: List[int], events: List[int]) -> List[int]:
+                \"\"\"Count occurrences of each query in events.\"\"\"
+                return [events.count(q) for q in queries]
+
+            def climb_ways(n: int) -> Optional[int]:
+                \"\"\"Recursive staircase count with typing annotation.\"\"\"
+                if n <= 1:
+                    return 1
+                return climb_ways(n - 1) + climb_ways(n - 2)
+            """
+        ),
+        encoding="utf-8",
+    )
+
+    alchemist = AlgorithmicAlchemist(storage_dir=tmp_path / ".overmind")
+    new_src, reports = alchemist.optimize_file(target_mod, apply=True)
+    by_name = {r.func_name: r for r in reports}
+
+    assert "filter_shared" in by_name
+    assert by_name["filter_shared"].strategy == "nested_membership_to_hash_set"
+    assert by_name["filter_shared"].proven_equivalent is True
+
+    assert "count_query_hits" in by_name
+    assert by_name["count_query_hits"].strategy == "loop_count_to_frequency_map"
+    assert by_name["count_query_hits"].proven_equivalent is True
+
+    assert "climb_ways" in by_name
+    assert by_name["climb_ways"].strategy == "recursive_state_memoization"
+    assert by_name["climb_ways"].proven_equivalent is True
+
+    # Execute the optimized file to verify imports, __future__ annotations, docstrings, and class methods remain intact
+    orig_sys_path = list(sys.path)
+    sys.path.insert(0, str(tmp_path))
+    try:
+        ns = runpy.run_path(str(target_mod))
+        assert ns["filter_shared"]([1, 2, 3, 4], [2, 4]) == [5, 9]
+        assert ns["filter_shared"].__doc__ == "Keep candidates present in allowed and transform via module helpers."
+        assert ns["count_query_hits"]([1, 2, 9], [2, 1, 2, 2, 5]) == [1, 3, 0]
+        assert ns["count_query_hits"].__doc__ == "Count occurrences of each query in events."
+        assert ns["climb_ways"](10) == 89
+        assert ns["climb_ways"].__doc__ == "Recursive staircase count with typing annotation."
+        # Class method with colliding name must remain untouched
+        assert ns["DummyContainer"]().filter_shared([1, 2], [1, 2]) == []
+    finally:
+        sys.path[:] = orig_sys_path
+
+
+def test_alchemist_directory_scanning_cli_and_mcp(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    pkg_dir = tmp_path / "analytics_pkg"
+    sub_dir = pkg_dir / "workers"
+    venv_dir = pkg_dir / ".venv"
+    sub_dir.mkdir(parents=True)
+    venv_dir.mkdir(parents=True)
+
+    # Ignored directory file must never be touched
+    (venv_dir / "ignored_slow.py").write_text(
+        "def ignored_fn(a: list, b: list) -> list:\n    return [x for x in a if x in b]\n",
+        encoding="utf-8",
+    )
+
+    f1 = pkg_dir / "matcher.py"
+    f1.write_text(
+        textwrap.dedent(
+            """\
+            from __future__ import annotations
+            from typing import List
+
+            def match_ids(left: List[int], right: List[int]) -> List[int]:
+                res = []
+                for x in left:
+                    if x in right:
+                        res.append(x)
+                return res
+            """
+        ),
+        encoding="utf-8",
+    )
+
+    f2 = sub_dir / "scorer.py"
+    f2.write_text(
+        textwrap.dedent(
+            """\
+            from __future__ import annotations
+            from typing import List
+
+            def normalize_above_max(items: List[int], baseline: List[int]) -> List[int]:
+                out = []
+                for x in items:
+                    if x >= max(baseline):
+                        out.append(x)
+                return out
+            """
+        ),
+        encoding="utf-8",
+    )
+
+    # 1. Test CLI `overmind optimize <dir> --json` (preview mode)
+    rc = cli_main(["optimize", str(pkg_dir), "--json"])
+    assert rc == 0
+    cli_out = json.loads(capsys.readouterr().out)
+    assert cli_out["files_scanned"] == 2
+    assert cli_out["transmutations_count"] == 2
+    assert cli_out["applied"] is False
+    assert "_om_set_" not in f1.read_text(encoding="utf-8")
+
+    # 2. Test MCP `overmind_optimize` on directory with `apply=True`
+    server = OvermindMCPServer(workspace_dir=tmp_path)
+    mcp_res = server.call_tool("overmind_optimize", {"file_path": str(pkg_dir), "apply": True})
+    assert mcp_res["isError"] is False
+    mcp_payload = json.loads(mcp_res["content"][0]["text"])
+    assert mcp_payload["files_scanned"] == 2
+    assert mcp_payload["transmutations_count"] == 2
+    assert len(mcp_payload["files_optimized"]) == 2
+    assert "_om_set_right" in f1.read_text(encoding="utf-8")
+    assert "_om_hoist_max_baseline" in f2.read_text(encoding="utf-8")
+    assert "_om_set_" not in (venv_dir / "ignored_slow.py").read_text(encoding="utf-8")
+
+
+def test_alchemist_resolves_relative_and_with_guarded_imports_inside_packages(tmp_path: Path) -> None:
+    sub = tmp_path / "om_relpkg" / "sub"
+    sub.mkdir(parents=True)
+    (tmp_path / "om_relpkg" / "__init__.py").write_text("", encoding="utf-8")
+    (sub / "__init__.py").write_text("", encoding="utf-8")
+    (tmp_path / "om_relpkg" / "utils.py").write_text("def norm(x):\n    return x * 2\n", encoding="utf-8")
+    (sub / "consts.py").write_text("K = 1\n", encoding="utf-8")
+    target = sub / "matcher.py"
+    target.write_text(
+        textwrap.dedent(
+            """\
+            from __future__ import annotations
+            import contextlib
+            from ..utils import norm
+            from . import consts
+            with contextlib.suppress(ImportError):
+                import json as fastjson
+
+            def match_rel(left: list[int], right: list[int] | None) -> list[int]:
+                res = []
+                for x in left:
+                    if x in right:
+                        res.append(norm(x) + consts.K + len(fastjson.dumps(x)))
+                return res
+            """
+        ),
+        encoding="utf-8",
+    )
+
+    funcs, _ = DifferentialShadowProver._compile_functions(
+        target.read_text(encoding="utf-8"), "relpkg", source_path=target
+    )
+    assert funcs["match_rel"]([1, 2], [2]) == [6]
+
+    new_src, reports = AlgorithmicAlchemist(storage_dir=tmp_path / ".overmind").optimize_file(target)
+    assert [r.func_name for r in reports] == ["match_rel"]
+    assert "from ..utils import norm" in new_src and "with contextlib.suppress(ImportError):" in new_src
+

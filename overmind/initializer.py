@@ -33,7 +33,10 @@ fi
 # <<< overmind-pre-commit <<<
 """
 
-GITHUB_WORKFLOW_YAML = """name: Overmind 2.0 Autonomous Verification & Evolution Gate
+from overmind import __version__  # noqa: E402  (defined before overmind/__init__ imports this module)
+
+# Pinned to this release's tag so a compromised `main` cannot reach every onboarded repo's CI.
+GITHUB_WORKFLOW_YAML = f"""name: Overmind 2.0 Autonomous Verification & Evolution Gate
 
 on:
   push:
@@ -58,7 +61,7 @@ jobs:
       - name: Install Overmind 2.0 Kernel & Project Dependencies
         run: |
           python -m pip install --upgrade pip pytest
-          python -m pip install git+https://github.com/ntrieuvi97/overmind.git
+          python -m pip install git+https://github.com/ntrieuvi97/overmind.git@v{__version__}
           if [ -f "pyproject.toml" ] || [ -f "setup.py" ]; then
             pip install -e . || true
           fi

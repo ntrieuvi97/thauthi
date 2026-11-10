@@ -58,7 +58,11 @@ class OvermindMCPServer:
         p = Path(raw_path).expanduser()
         if not p.is_absolute():
             p = self.workspace_dir / p
-        return p.resolve()
+        p = p.resolve()
+        # Trust boundary: MCP callers may only read/write/execute inside the served workspace.
+        if p != self.workspace_dir and self.workspace_dir not in p.parents:
+            raise ValueError(f"Path escapes MCP workspace ({self.workspace_dir}): {raw_path}")
+        return p
 
     def list_tools(self) -> List[Dict[str, Any]]:
         return [
@@ -98,7 +102,9 @@ class OvermindMCPServer:
                 "description": (
                     "Run BehavioralInvariantMiner or DifferentialShadowProver (Old AST vs New AST) "
                     "with randomized property fuzzing and O(N) complexity verification to mathematically "
-                    "prove semantic equivalence, argument purity, and zero asymptotic regression."
+                    "prove semantic equivalence, argument purity, and zero asymptotic regression. "
+                    "WARNING: EXECUTES the given code (imports, module-level assignments and every "
+                    "public function, with fuzzed inputs) in this process, unsandboxed."
                 ),
                 "inputSchema": {
                     "type": "object",
@@ -115,15 +121,18 @@ class OvermindMCPServer:
             {
                 "name": "overmind_optimize",
                 "description": (
-                    "Run AlgorithmicAlchemist to detect and optimize O(N^2)->O(N) loops and O(2^N)->O(N) "
-                    "recursion, mathematically proving behavioral equivalence before returning or applying."
+                    "Run AlgorithmicAlchemist on a Python file, directory, or inline snippet to detect and optimize "
+                    "O(N^2)->O(N) loops and O(2^N)->O(N) recursion, mathematically proving behavioral equivalence "
+                    "before returning or applying. WARNING: EXECUTES the target code (imports, module-level "
+                    "assignments and every public function, with fuzzed inputs) in this process, unsandboxed."
                 ),
                 "inputSchema": {
                     "type": "object",
                     "properties": {
-                        "file_path": {"type": "string", "description": "Target Python file path."},
+                        "file_path": {"type": "string", "description": "Target Python file or directory path."},
+                        "target_path": {"type": "string", "description": "Alias for target Python file or directory path."},
                         "source_code": {"type": "string", "description": "Inline Python source code."},
-                        "apply": {"type": "boolean", "description": "Write proven optimizations to file_path."},
+                        "apply": {"type": "boolean", "description": "Write proven optimizations to file(s)."},
                     },
                 },
             },
@@ -131,7 +140,8 @@ class OvermindMCPServer:
                 "name": "overmind_synthesize",
                 "description": (
                     "Run Contract-to-Code CEGIS Synthesizer on stub functions with docstring >>> examples, "
-                    "optionally verifying and auto-crystallizing caller-proposed candidate implementations."
+                    "optionally verifying and auto-crystallizing caller-proposed candidate implementations. "
+                    "WARNING: EXECUTES the target module and every candidate in this process, unsandboxed."
                 ),
                 "inputSchema": {
                     "type": "object",
@@ -274,24 +284,38 @@ class OvermindMCPServer:
 
             before_src = args.get("before_source")
             after_src = args.get("after_source")
-            if args.get("before_path"):
-                before_src = self._resolve_path(str(args["before_path"])).read_text(encoding="utf-8")
-            if args.get("after_path"):
-                after_src = self._resolve_path(str(args["after_path"])).read_text(encoding="utf-8")
+            b_path = self._resolve_path(str(args["before_path"])) if args.get("before_path") else None
+            a_path = self._resolve_path(str(args["after_path"])) if args.get("after_path") else None
+            if b_path:
+                before_src = b_path.read_text(encoding="utf-8")
+            if a_path:
+                after_src = a_path.read_text(encoding="utf-8")
             if not before_src or not after_src:
                 raise ValueError("Provide before_source/after_source (or before_path/after_path), or mine_path/mine_source.")
-            report = DifferentialShadowProver.prove_equivalence(str(before_src), str(after_src))
+            report = DifferentialShadowProver.prove_equivalence(
+                str(before_src),
+                str(after_src),
+                before_path=b_path,
+                after_path=a_path,
+            )
             return report.to_dict()
 
         if name == "overmind_optimize":
             apply_changes = bool(args.get("apply", False))
-            if args.get("file_path"):
-                f_path = self._resolve_path(str(args["file_path"]))
+            target_raw = args.get("file_path") or args.get("target_path") or args.get("path")
+            if target_raw:
+                f_path = self._resolve_path(str(target_raw))
+                if f_path.is_dir():
+                    alchemist = AlgorithmicAlchemist(storage_dir=f_path / ".overmind")
+                    return alchemist.optimize_directory(f_path, apply=apply_changes)
                 alchemist = AlgorithmicAlchemist(storage_dir=f_path.parent / ".overmind")
                 new_src, reports = alchemist.optimize_file(f_path, apply=apply_changes)
                 return {
+                    "target": str(f_path),
                     "file": str(f_path),
                     "applied": apply_changes,
+                    "files_scanned": 1,
+                    "files_optimized": [str(f_path)] if reports else [],
                     "transmutations_count": len(reports),
                     "transmutations": [r.to_dict() for r in reports],
                     "optimized_source": new_src,
@@ -300,13 +324,16 @@ class OvermindMCPServer:
                 alchemist = AlgorithmicAlchemist(storage_dir=self.workspace_dir / ".overmind")
                 new_src, reports = alchemist.optimize_source(str(args["source_code"]))
                 return {
+                    "target": "<inline>",
                     "file": "<inline>",
                     "applied": False,
+                    "files_scanned": 1,
+                    "files_optimized": [],
                     "transmutations_count": len(reports),
                     "transmutations": [r.to_dict() for r in reports],
                     "optimized_source": new_src,
                 }
-            raise ValueError("Provide `file_path` or `source_code` for overmind_optimize.")
+            raise ValueError("Provide `file_path` (or `target_path`) or `source_code` for overmind_optimize.")
 
         if name == "overmind_synthesize":
             candidates = args.get("candidate_sources")

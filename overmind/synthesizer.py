@@ -24,7 +24,8 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
-from overmind.prover import COMPLEXITY_RANK, BehavioralContract, BehavioralInvariantMiner
+from overmind.prover import COMPLEXITY_RANK, BehavioralContract, BehavioralInvariantMiner, DifferentialShadowProver
+from overmind.srcedit import splice_source
 
 
 @dataclass
@@ -328,7 +329,14 @@ class ContractSynthesizer:
 
         try:
             tree = ast.parse(cand_src)
-            code_obj = compile(tree, filename=f"<cegis:{func_name}>", mode="exec")
+            future_stmt = ast.ImportFrom(
+                module="__future__",
+                names=[ast.alias(name="annotations", asname=None)],
+                level=0,
+            )
+            compile_tree = ast.Module(body=[future_stmt, *copy.deepcopy(tree.body)], type_ignores=[])
+            ast.fix_missing_locations(compile_tree)
+            code_obj = compile(compile_tree, filename=f"<cegis:{func_name}>", mode="exec")
             ns: Dict[str, Any] = dict(extra_globals or {})
             exec(code_obj, ns)
             cand_fn = ns[func_name]
@@ -471,9 +479,7 @@ class ContractSynthesizer:
         """
         src = file_path.read_text(encoding="utf-8")
         tree = ast.parse(src, filename=str(file_path))
-        code_obj = compile(tree, filename=str(file_path), mode="exec")
-        ns: Dict[str, Any] = {"__name__": "__overmind_synth__"}
-        exec(code_obj, ns)
+        ns, _ = DifferentialShadowProver._compile_functions(src, "synth", source_path=file_path)
 
         results: List[SynthesisResult] = []
         synthesized_bodies: Dict[str, List[ast.stmt]] = {}
@@ -531,7 +537,7 @@ class ContractSynthesizer:
                 return node
 
         new_tree = ast.fix_missing_locations(_StubFiller().visit(tree))
-        new_src = ast.unparse(new_tree) + "\n"
+        new_src = splice_source(src, new_tree)
         if apply:
             file_path.write_text(new_src, encoding="utf-8")
         return new_src, results
