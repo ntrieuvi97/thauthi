@@ -95,7 +95,7 @@ When working in this repository, use the Thauthi 4.0 CLI (`thauthi`) to eliminat
 3. **Mathematical Equivalence & Complexity Proof (`thauthi prove --before <old.py> --after <new.py>`):** Prove semantic equivalence, input purity, and prevent `O(N) -> O(N^2)+` regressions.
 4. **Zero-Token AST Crystallization (`thauthi crystallize`):** Compile recurring code patterns into `<2ms` symbolic AST codemods (`thauthi crystallize --apply .`).
 5. **Autonomous O(N^2)->O(N) Optimization (`thauthi optimize <file.py> --apply`):** Automatically transmute nested scans & exponential recursion with equivalence proofs.
-6. **Chronos Time-Travel Replay (`thauthi chronos --script <file.py>`):** Record and replay stateful I/O cassettes in `<1ms` with zero side effects.
+6. **Chronos Time-Travel Replay (`thauthi chronos --script <file.py>`):** Record and replay stateful I/O cassettes in `<1ms` with zero side effects. **Privacy:** cassettes are NOT redacted and may contain credentials/tokens/PII; keep `.thauthi/cassettes/` out of git and CI artifacts and never record against production secrets.
 7. **Contract-to-Code CEGIS Synthesis (`thauthi synthesize <file.py> --apply`):** Synthesize proven code from docstring `>>>` examples.
 8. **Whole-Repo Call-Graph Hive (`thauthi hive . --apply`):** Automatically repair broken callers across files after function signature changes.
 9. **Zero-Dep MCP Server (`thauthi mcp`):** Prefer Thauthi MCP tools (`thauthi_trace`, `thauthi_prove`, `thauthi_optimize`, `thauthi_hive`, `thauthi_chronos`) over static text guessing.

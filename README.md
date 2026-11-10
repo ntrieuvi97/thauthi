@@ -3,7 +3,7 @@
 > **Beyond Static Text Guessing — The World's First Runtime-Omniscient, Self-Healing, Mathematically Proven, Self-Optimizing & Self-Synthesizing OS for AI Coding Agents**  
 > *Why did AI agents (Devin, Claude Code, Cursor, SWE-agent) still need human Senior Engineers? Because they read static text files like blind men reading Braille, guessed what happened in memory, broke callers across files, wrote $O(N^2)$ loops, couldn't replay stateful I/O crashes, and burned thousands of LLM tokens repeating the same code edits. **Thauthi 4.0** hooks directly into the live Python runtime, I/O syscall boundary, and AST compiler to end the Human Imperative Coding Era.*
 
-[![Version: 4.0.7](https://img.shields.io/badge/Version-4.0.7-00f2fe.svg)](#)
+[![Version: 4.0.8](https://img.shields.io/badge/Version-4.0.8-00f2fe.svg)](#)
 [![Kernel: Omniscient + Centsible](https://img.shields.io/badge/Kernel-Omniscient_%2B_Centsible-orange.svg)](https://github.com/ntrieuvi97/centsible)
 [![Dependencies: Zero (Stdlib)](https://img.shields.io/badge/Dependencies-Zero_%28Python_Stdlib%29-brightgreen.svg)](#)
 [![Runtimes: Antigravity | Claude Code | OpenClaw](https://img.shields.io/badge/Runtimes-Antigravity_%7C_Claude_Code_%7C_OpenClaw-purple.svg)](#)
@@ -101,6 +101,8 @@ thauthi optimize slow_service.py --apply
 ```
 
 ### 2. ⏳ Deterministic I/O Time-Travel & Stateful Self-Healing (`@time_travel` & `thauthi chronos`)
+
+> ⚠️ **Privacy warning:** cassettes record raw arguments/return values (HTTP bodies, subprocess output, env values, DB/API results) and are **not redacted**. They may contain credentials, tokens, or personal data. Add `.thauthi/cassettes/` to `.gitignore`, never commit or upload them, and never record against production secrets.
 Record external API/DB/clock calls into hermetic cassettes and heal stateful crashes in-flight without re-calling remote endpoints:
 ```python
 from thauthi import time_travel
