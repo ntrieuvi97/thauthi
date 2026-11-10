@@ -22,6 +22,8 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+from thauthi.srcedit import backup_before_write
+
 
 @dataclass
 class RecordedCallFrame:
@@ -497,6 +499,7 @@ class AutopoieticImmuneSystem:
             indent = first_line[: len(first_line) - len(first_line.lstrip())]
             indented_patch = textwrap.indent(patched_source.strip(), indent) + "\n"
             new_file_text = file_text.replace(raw_func_src, indented_patch, 1)
+            backup_before_write(src_file)
             src_file.write_text(new_file_text, encoding="utf-8")
             return True
         except Exception:

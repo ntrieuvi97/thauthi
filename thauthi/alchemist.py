@@ -29,7 +29,7 @@ from thauthi.prover import (
     DifferentialShadowProver,
     synthesize_domain_inputs,
 )
-from thauthi.srcedit import splice_source
+from thauthi.srcedit import backup_before_write, splice_source
 
 
 @dataclass
@@ -906,6 +906,7 @@ class AlgorithmicAlchemist:
         src = resolved.read_text(encoding="utf-8")
         new_src, reports = self.optimize_source(src, source_path=resolved)
         if apply and reports:
+            backup_before_write(resolved)
             resolved.write_text(new_src, encoding="utf-8")
         return new_src, reports
 

@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 from thauthi.prover import COMPLEXITY_RANK, BehavioralContract, BehavioralInvariantMiner, DifferentialShadowProver
-from thauthi.srcedit import splice_source
+from thauthi.srcedit import backup_before_write, splice_source
 
 
 @dataclass
@@ -539,6 +539,7 @@ class ContractSynthesizer:
         new_tree = ast.fix_missing_locations(_StubFiller().visit(tree))
         new_src = splice_source(src, new_tree)
         if apply:
+            backup_before_write(file_path)
             file_path.write_text(new_src, encoding="utf-8")
         return new_src, results
 

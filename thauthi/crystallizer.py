@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from thauthi.kernel import CentsibleKernelBridge
-from thauthi.srcedit import splice_source
+from thauthi.srcedit import backup_before_write, splice_source
 
 BUILTIN_ANCHORS = {
     "len", "range", "enumerate", "zip", "map", "filter", "sorted", "reversed",
@@ -424,6 +424,7 @@ if __name__ == "__main__":
                 total_replacements += count
                 modified_files.append(str(fpath))
                 if not dry_run:
+                    backup_before_write(fpath)
                     fpath.write_text(new_src, encoding="utf-8")
 
         return {
