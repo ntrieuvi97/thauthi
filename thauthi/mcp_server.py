@@ -175,7 +175,8 @@ class ThauthiMCPServer:
                 "name": "thauthi_chronos",
                 "description": (
                     "Interact with Chronos Deterministic I/O Virtualization & Time-Travel Cassettes: "
-                    "list saved ExecutionCassettes or record a script's execution."
+                    "list saved ExecutionCassettes or record a script's execution. Best-effort interception only, NOT a sandbox: "
+                    "un-intercepted I/O (Popen, os.system, sockets, file I/O) runs for real, and cassettes are not redacted."
                 ),
                 "inputSchema": {
                     "type": "object",

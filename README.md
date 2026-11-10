@@ -3,7 +3,7 @@
 > **Beyond Static Text Guessing — The World's First Runtime-Omniscient, Self-Healing, Differentially Verified, Self-Optimizing & Self-Synthesizing OS for AI Coding Agents**  
 > *Why did AI agents (Devin, Claude Code, Cursor, SWE-agent) still need human Senior Engineers? Because they read static text files like blind men reading Braille, guessed what happened in memory, broke callers across files, wrote $O(N^2)$ loops, couldn't replay stateful I/O crashes, and burned thousands of LLM tokens repeating the same code edits. **Thauthi 4.0** hooks directly into the live Python runtime, I/O syscall boundary, and AST compiler to end the Human Imperative Coding Era.*
 
-[![Version: 4.0.10](https://img.shields.io/badge/Version-4.0.10-00f2fe.svg)](#)
+[![Version: 4.0.11](https://img.shields.io/badge/Version-4.0.11-00f2fe.svg)](#)
 [![Kernel: Omniscient + Centsible](https://img.shields.io/badge/Kernel-Omniscient_%2B_Centsible-orange.svg)](https://github.com/ntrieuvi97/centsible)
 [![Dependencies: Zero (Stdlib)](https://img.shields.io/badge/Dependencies-Zero_%28Python_Stdlib%29-brightgreen.svg)](#)
 [![Runtimes: Antigravity | Claude Code | OpenClaw](https://img.shields.io/badge/Runtimes-Antigravity_%7C_Claude_Code_%7C_OpenClaw-purple.svg)](#)
@@ -22,7 +22,7 @@ Every existing multi-agent wrapper operates on **dead static text**. Thauthi 4.0
 | ⚖️ **3. Behavioral Invariant Miner & Differential Shadow Prover** | `thauthi.prover` | Relies on human Code Review because unit tests miss edge cases, argument mutation, or $O(N^2)$ slowdowns. | Mines **Daikon-style Behavioral Contracts** & empirical step complexity (`O(1)`, `O(N)`, `O(N^2)+`), running **Old-AST vs. New-AST Differential Shadow Execution** to check for regressions on sampled inputs. |
 | 💎 **4. Neural-to-Symbolic AST Crystallizer** | `thauthi.crystallizer` | Burns 2,000+ LLM tokens every time a similar code pattern needs refactoring across files. | Abstracts neural code edits (`Before AST -> After AST`) into metavariable templates (`__OM_V1__`) and compiles them into **0-token Symbolic AST Codemods** executing in `<2ms`. |
 | 🧪 **5. Algorithmic Alchemist (`O(N^2) -> O(N)` Optimizer)** | `thauthi.alchemist` | Senior Perf Engineers manually profile bottlenecks, replace nested list scans with hash sets, and add memoization. | Autonomously detects $O(N^2)$ nested membership/equality loops and $O(2^N)$ unmemoized recursion, synthesizes $O(1)$ hash-set & inline memo AST transmutations, and proves 100% equivalence + empirical speedup via `DifferentialShadowProver`! |
-| ⏳ **6. Chronos I/O Virtualization & Time-Travel Kernel** | `thauthi.chronos` | Production crashes inside DB/HTTP/clock-dependent code cannot be reproduced locally because external state changed. | Hooks `time.time`, `random`, `urllib`, `os.getenv`, and external API/DB helpers into hermetic **`ExecutionCassette`s**, replaying and healing stateful I/O functions in `<1ms` with **0 external network calls**! |
+| ⏳ **6. Chronos I/O Virtualization & Time-Travel Kernel** | `thauthi.chronos` | Production crashes inside DB/HTTP/clock-dependent code cannot be reproduced locally because external state changed. | Hooks `time.time`, `random`, `urllib`, `os.getenv`, and external API/DB helpers into hermetic **`ExecutionCassette`s**, replaying and healing stateful I/O functions in `<1ms` best-effort replay of the intercepted boundaries (**not a sandbox**: un-intercepted I/O still executes for real). |
 | 🧬 **7. Contract-to-Code CEGIS Program Synthesizer** | `thauthi.synthesizer` | Humans translate docstrings, examples, and specs into imperative code by hand. | Write only a function stub (`pass`) with `>>>` doctest examples. Thauthi's **CEGIS Engine** synthesizes, proves purity & $O(N)$ complexity, and writes the implementation automatically! |
 | 🕸️ **8. Whole-Repo Call-Graph Ripple Propagator** | `thauthi.hive` | Refactoring a function signature in `module_a.py` breaks callers across `module_b.py` and `tests/`. | Indexes all function signatures and call sites across the entire repository, automatically rewriting broken callers when parameters are renamed, added, or pruned! |
 
@@ -103,7 +103,7 @@ thauthi optimize slow_service.py --apply
 ### 2. ⏳ Deterministic I/O Time-Travel & Stateful Self-Healing (`@time_travel` & `thauthi chronos`)
 
 > ⚠️ **Privacy warning:** cassettes record raw arguments/return values (HTTP bodies, subprocess output, env values, DB/API results) and are **not redacted**. They may contain credentials, tokens, or personal data. Add `.thauthi/cassettes/` to `.gitignore`, never commit or upload them, and never record against production secrets.
-Record external API/DB/clock calls into hermetic cassettes and heal stateful crashes in-flight without re-calling remote endpoints:
+Record external API/DB/clock calls into hermetic cassettes and heal stateful crashes in-flight, re-calling remote endpoints only where a boundary is not intercepted (**best-effort, not a sandbox**):
 ```python
 from thauthi import time_travel
 

@@ -18,6 +18,7 @@ Eliminates "Works on My Machine" and stateful production debugging by:
 """
 
 import ast
+import warnings
 import builtins
 import copy
 import datetime as _dt_mod
@@ -40,6 +41,16 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple
 
 from thauthi.immune import CounterfactualSurgeon, RecordedCallFrame
+
+_NOT_SANDBOX_WARNING = (
+    "Chronos replay is best-effort, NOT a sandbox: only intercepted boundaries are virtualized; "
+    "Popen, os.system, raw sockets, file I/O and client instance methods still execute for real. "
+    "Do not replay functions with real side effects against production systems."
+)
+
+
+def _warn_not_sandbox() -> None:
+    warnings.warn(_NOT_SANDBOX_WARNING, RuntimeWarning, stacklevel=3)
 
 
 @dataclass
@@ -830,7 +841,8 @@ class ChronosTimeMachine:
         cassette: ExecutionCassette,
         sandbox_globals: Optional[Dict[str, Any]] = None,
     ) -> Tuple[Any, Optional[BaseException]]:
-        """Replay a recorded `ExecutionCassette` against sync `func` with zero external side effects."""
+        """Replay a recorded `ExecutionCassette` against sync `func` best-effort (NOT a sandbox: only intercepted boundaries are virtualized; other I/O runs for real)."""
+        _warn_not_sandbox()
         with self._intercept_environment(
             func,
             mode="replay",
@@ -849,7 +861,8 @@ class ChronosTimeMachine:
         cassette: ExecutionCassette,
         sandbox_globals: Optional[Dict[str, Any]] = None,
     ) -> Tuple[Any, Optional[BaseException]]:
-        """Replay a recorded `ExecutionCassette` against `async def` `func` with zero external side effects."""
+        """Replay a recorded `ExecutionCassette` against `async def` `func` best-effort (NOT a sandbox: only intercepted boundaries are virtualized; other I/O runs for real)."""
+        _warn_not_sandbox()
         with self._intercept_environment(
             func,
             mode="replay",
