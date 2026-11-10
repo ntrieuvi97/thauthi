@@ -74,6 +74,16 @@ curl -fsSL https://raw.githubusercontent.com/ntrieuvi97/thauthi/main/install.sh 
 pip install git+https://github.com/ntrieuvi97/thauthi.git
 ```
 
+**Option C — via OpenClaw / Claude Code Marketplace:**
+```bash
+# OpenClaw
+openclaw plugins install thauthi --marketplace ntrieuvi97/thauthi --force
+
+# Claude Code
+claude plugin marketplace add ntrieuvi97/thauthi
+claude plugin install thauthi
+```
+
 ### Step 2: Onboard Any Repository in the World (`thauthi init`)
 ```bash
 cd /path/to/any-repo
