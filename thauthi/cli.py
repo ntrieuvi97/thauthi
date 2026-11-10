@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Thauthi 3.0 CLI — Unified command-line interface for the Post-Developer Singularity Kernel.
+Thauthi 4.0 CLI — Unified command-line interface for the Post-Developer Singularity Kernel.
 """
 
 import argparse
@@ -38,7 +38,7 @@ from thauthi.verifier import ShadowVerifier
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="thauthi",
-        description="Thauthi 3.0: The Post-Developer Singularity Kernel for AI Coding Agents.",
+        description="Thauthi 4.0: The Post-Developer Singularity Kernel for AI Coding Agents.",
     )
     parser.add_argument("-v", "--version", action="version", version=f"Thauthi v{__version__}")
     parser.add_argument("--facts-path", type=Path, default=None, help="Custom path to facts.jsonl")
@@ -205,7 +205,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         if args.json:
             print(json.dumps(rep, ensure_ascii=False, indent=2))
         else:
-            print(f"🚀 Initialized Thauthi 3.0 in repository: {rep['repository']}")
+            print(f"🚀 Initialized Thauthi 4.0 in repository: {rep['repository']}")
             for f_rel in rep["files_configured"]:
                 print(f"  ✓ Configured: {f_rel}")
         return 0

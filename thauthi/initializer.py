@@ -86,9 +86,9 @@ jobs:
           thauthi scorecard --markdown >> "$GITHUB_STEP_SUMMARY"
 """
 
-AGENT_RULE_MARKDOWN = """# Thauthi 3.0 Post-Developer Singularity Kernel Rules
+AGENT_RULE_MARKDOWN = """# Thauthi 4.0 Post-Developer Singularity Kernel Rules
 
-When working in this repository, use the Thauthi 3.0 CLI (`thauthi`) to eliminate static guessing and guarantee zero-regression code:
+When working in this repository, use the Thauthi 4.0 CLI (`thauthi`) to eliminate static guessing and guarantee zero-regression code:
 
 1. **Runtime Fault Localization (`thauthi trace <script.py>`):** Inspect live `FrameDNA` and Backward Dynamic Causal Slices instead of guessing why code crashes.
 2. **In-Flight Self-Healing (`thauthi heal <script.py> --apply`):** Automatically synthesize `pytest` regression tests from crashing frames and verify AST patches in memory.

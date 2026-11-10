@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "thauthi",
-  "description": "Thauthi 3.0: The Post-Developer Singularity Kernel for AI coding agents (Antigravity & Claude Code)",
+  "description": "Thauthi 4.0: The Post-Developer Singularity Kernel for AI coding agents (Antigravity & Claude Code)",
   "owner": {
     "name": "Vi Nguyen",
     "url": "https://github.com/ntrieuvi97"
@@ -10,7 +10,7 @@
     {
       "name": "thauthi",
       "description": "Omniscient Runtime Tracer, Self-Healing AST Surgery, Differential Prover, Symbolic AST Crystals, O(N^2)->O(N) Alchemist, Chronos I/O Time-Travel, CEGIS Synthesizer & Call-Graph Hive.",
-      "version": "4.0.5",
+      "version": "4.0.6",
       "source": "./",
       "category": "productivity",
       "skills": [

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Thauthi 3.0 Universal Installer (macOS / Linux / WSL / CI) 🧠⚡
+# Thauthi 4.0 Universal Installer (macOS / Linux / WSL / CI) 🧠⚡
 # Supports both:
 #   1) Remote 1-liner: curl -fsSL https://raw.githubusercontent.com/ntrieuvi97/thauthi/main/install.sh | bash
 #   2) Local clone:    ./install.sh
@@ -21,16 +21,16 @@ else
     REPO_DIR="$HOME/.thauthi/repo"
     mkdir -p "$HOME/.thauthi"
     if [ -d "$REPO_DIR/.git" ]; then
-        echo "• Updating Thauthi 3.0 in $REPO_DIR..."
+        echo "• Updating Thauthi 4.0 in $REPO_DIR..."
         git -C "$REPO_DIR" pull --ff-only >/dev/null 2>&1 || true
     else
-        echo "• Cloning Thauthi 3.0 from $THAUTHI_GIT_URL..."
+        echo "• Cloning Thauthi 4.0 from $THAUTHI_GIT_URL..."
         # Pin a release: THAUTHI_REF=v3.0.0 ./install.sh  (default: latest main)
         git clone --depth 1 ${THAUTHI_REF:+--branch "$THAUTHI_REF"} "$THAUTHI_GIT_URL" "$REPO_DIR"
     fi
 fi
 
-echo "=== Installing Thauthi 3.0: Post-Developer Singularity Kernel 🧠⚡ ==="
+echo "=== Installing Thauthi 4.0: Post-Developer Singularity Kernel 🧠⚡ ==="
 echo "• Source Directory: $REPO_DIR"
 
 chmod +x "$REPO_DIR/bin/thauthi"
@@ -125,4 +125,4 @@ export PATH="$LOCAL_BIN:$PATH"
 echo ""
 "$LOCAL_BIN/thauthi" status || true
 echo ""
-echo "🎉 Thauthi 3.0 is ready! Run 'thauthi init' inside any repo to onboard your team & CI."
+echo "🎉 Thauthi 4.0 is ready! Run 'thauthi init' inside any repo to onboard your team & CI."

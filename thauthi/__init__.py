@@ -1,5 +1,5 @@
 """
-Thauthi 3.0: The Post-Developer Singularity Kernel for AI Coding Agents.
+Thauthi 4.0: The Post-Developer Singularity Kernel for AI Coding Agents.
 
 Combines the Centsible Reflex Kernel with 8 Autonomous Runtime & Compiler Pillars:
 1. Omniscient Runtime Tracer & Causal Fault Localization (thauthi.omniscient)
@@ -12,7 +12,7 @@ Combines the Centsible Reflex Kernel with 8 Autonomous Runtime & Compiler Pillar
 8. Whole-Repo Call-Graph Ripple Propagator (thauthi.hive)
 """
 
-__version__ = "4.0.5"
+__version__ = "4.0.6"
 
 from thauthi.alchemist import AlgorithmicAlchemist, TransmutationReport
 from thauthi.chronos import ChronosTimeMachine, ExecutionCassette, SyscallEvent, time_travel

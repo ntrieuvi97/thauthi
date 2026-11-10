@@ -1,9 +1,9 @@
-# 🧠 Thauthi (Thấu Thị) 3.0: The Post-Developer Singularity Kernel
+# 🧠 Thauthi (Thấu Thị) 4.0: The Post-Developer Singularity Kernel
 
 > **Beyond Static Text Guessing — The World's First Runtime-Omniscient, Self-Healing, Mathematically Proven, Self-Optimizing & Self-Synthesizing OS for AI Coding Agents**  
-> *Why did AI agents (Devin, Claude Code, Cursor, SWE-agent) still need human Senior Engineers? Because they read static text files like blind men reading Braille, guessed what happened in memory, broke callers across files, wrote $O(N^2)$ loops, couldn't replay stateful I/O crashes, and burned thousands of LLM tokens repeating the same code edits. **Thauthi 3.0** hooks directly into the live Python runtime, I/O syscall boundary, and AST compiler to end the Human Imperative Coding Era.*
+> *Why did AI agents (Devin, Claude Code, Cursor, SWE-agent) still need human Senior Engineers? Because they read static text files like blind men reading Braille, guessed what happened in memory, broke callers across files, wrote $O(N^2)$ loops, couldn't replay stateful I/O crashes, and burned thousands of LLM tokens repeating the same code edits. **Thauthi 4.0** hooks directly into the live Python runtime, I/O syscall boundary, and AST compiler to end the Human Imperative Coding Era.*
 
-[![Version: 4.0.5](https://img.shields.io/badge/Version-4.0.5-00f2fe.svg)](#)
+[![Version: 4.0.6](https://img.shields.io/badge/Version-4.0.6-00f2fe.svg)](#)
 [![Kernel: Omniscient + Centsible](https://img.shields.io/badge/Kernel-Omniscient_%2B_Centsible-orange.svg)](https://github.com/ntrieuvi97/centsible)
 [![Dependencies: Zero (Stdlib)](https://img.shields.io/badge/Dependencies-Zero_%28Python_Stdlib%29-brightgreen.svg)](#)
 [![Runtimes: Antigravity | Claude Code | OpenClaw](https://img.shields.io/badge/Runtimes-Antigravity_%7C_Claude_Code_%7C_OpenClaw-purple.svg)](#)
@@ -11,11 +11,11 @@
 
 ---
 
-## ⚡ The 8 Pillars of Thauthi 3.0 vs. Traditional Software Development
+## ⚡ The 8 Pillars of Thauthi 4.0 vs. Traditional Software Development
 
-Every existing multi-agent wrapper operates on **dead static text**. Thauthi 3.0 introduces **8 Runtime & Compiler Breakthroughs** with **Zero External Dependencies** (`100% Python Stdlib`):
+Every existing multi-agent wrapper operates on **dead static text**. Thauthi 4.0 introduces **8 Runtime & Compiler Breakthroughs** with **Zero External Dependencies** (`100% Python Stdlib`):
 
-| Breakthrough Pillar | Engine Module | What Human Devs / Static Agents Do | What Thauthi 3.0 Does Automatically |
+| Breakthrough Pillar | Engine Module | What Human Devs / Static Agents Do | What Thauthi 4.0 Does Automatically |
 |---|---|---|---|
 | 👁️ **1. Omniscient Runtime Tracer & Causal Fault Graph** | `thauthi.omniscient` | Grep files, read 10,000 tokens of text, *guess* what variables held at crash time. | Hooks `sys.settrace` to record live `FrameDNA` variable mutations & runs **Backward Dynamic Slicing** to isolate the exact root-cause line and state transition. |
 | 🩹 **2. In-Flight Self-Healing Immune System** | `thauthi.immune` | Process crashes -> waits hours for human bug report -> human prompts LLM -> LLM guesses a fix. | `@immune` intercepts unhandled crashes **in-flight**, cryo-freezes the call frame into a `pytest` regression test, tests candidate **AST Surgeries** in-memory against all historical healthy frames, and hot-swaps the healed code without crashing! |

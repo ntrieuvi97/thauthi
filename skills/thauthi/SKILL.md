@@ -1,15 +1,15 @@
 ---
 name: thauthi
 description: >-
-  Thauthi 3.0: The Post-Developer Singularity Kernel for AI coding agents (Antigravity & Claude Code) —
+  Thauthi 4.0: The Post-Developer Singularity Kernel for AI coding agents (Antigravity & Claude Code) —
   Omniscient Runtime Tracer, In-Flight Self-Healing AST Surgery, Differential Shadow Prover,
   Symbolic AST Crystallizer, Autonomous O(N^2)->O(N) Alchemist, Chronos I/O Time-Travel,
   Contract-to-Code CEGIS Synthesizer & Whole-Repo Call-Graph Hive.
 ---
 
-# Thauthi 3.0 Agent Skill 🧠⚡
+# Thauthi 4.0 Agent Skill 🧠⚡
 
-Thauthi 3.0 moves AI coding agents beyond the "Static Text Guessing Era" into the **Post-Developer Runtime & Symbolic Compiler Singularity** via **8 Zero-Dependency Pillars**:
+Thauthi 4.0 moves AI coding agents beyond the "Static Text Guessing Era" into the **Post-Developer Runtime & Symbolic Compiler Singularity** via **8 Zero-Dependency Pillars**:
 1. **Omniscient Runtime Tracer (`thauthi trace`):** Hooks `sys.settrace` to record live variable mutation timelines (`FrameDNA`) and Backward Dynamic Slicing (`CausalFaultReport`) when crashes occur.
 2. **In-Flight Self-Healing Immune System (`thauthi heal` / `@thauthi.immune`):** Intercepts unhandled exceptions in-flight, cryo-freezes call frames into `pytest` regression tests, synthesizes & verifies Counterfactual AST Patches in-memory against historical healthy frames, and hot-swaps the healed code without crashing.
 3. **Behavioral Invariant Miner & Differential Shadow Prover (`thauthi prove`):** Mines Daikon-style runtime contracts and empirical $O(N)$ step complexity (`O(1)`, `O(log N)`, `O(N)`, `O(N^2)+`), running Old-AST vs. New-AST Differential Shadow Execution to mathematically replace manual human code review.
