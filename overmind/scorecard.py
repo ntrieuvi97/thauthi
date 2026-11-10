@@ -156,7 +156,7 @@ def _pad_box_line(label: str, value: str, width: int = 72) -> str:
 
 
 def render_terminal_scorecard(data: Dict[str, Any]) -> str:
-    kernel_tag = "Omniscient Autopoietic Kernel v2.0 [ACTIVE]" if data["centsible_bound"] else "Standalone Omniscient Kernel v2.0 [ACTIVE]"
+    kernel_tag = "Omniscient Singularity Kernel v3.0 [ACTIVE]" if data["centsible_bound"] else "Standalone Singularity Kernel v3.0 [ACTIVE]"
     scope_tag = data.get("scope_name", "Local Repo")
     crystals = data.get("symbolic_crystals", 0)
     surgeries = data.get("immune_surgeries", 0)
@@ -172,7 +172,7 @@ def render_terminal_scorecard(data: Dict[str, Any]) -> str:
 
     lines = [
         "╔════════════════════════════════════════════════════════════════════════╗",
-        "║  🧠 OVERMIND 2.0 — OMNISCIENT AUTOPOIETIC KERNEL SCORECARD             ║",
+        "║  🧠 OVERMIND 3.0 — POST-DEVELOPER SINGULARITY KERNEL SCORECARD         ║",
         "╠════════════════════════════════════════════════════════════════════════╣",
         _pad_box_line("Scope:", scope_tag),
         _pad_box_line("Kernel Engine:", kernel_tag),
@@ -202,7 +202,7 @@ def render_terminal_scorecard(data: Dict[str, Any]) -> str:
 def render_markdown_badge(data: Dict[str, Any]) -> str:
     verified_tok = data.get("verified_tokens_saved", data["net_tokens_saved"])
     return (
-        f"> ⚡ **Evolved by [Overmind 2.0](https://github.com/ntrieuvi97/overmind)** "
+        f"> ⚡ **Evolved by [Overmind 3.0](https://github.com/ntrieuvi97/overmind)** "
         f"| **Level {data['level']}** (IQ `{data['agent_iq']}`) "
         f"| `{data['elite_genes']}` Elite Genes (`{data['avg_fitness']}%` fitness) "
         f"| `{data['forged_tools']}` Forged Tools & `{data.get('symbolic_crystals', 0)}` AST Crystals "
@@ -226,7 +226,7 @@ def render_svg_card(data: Dict[str, Any], output_path: Optional[Path] = None) ->
   </defs>
   <rect width="680" height="260" rx="14" fill="url(#bg)" stroke="#26334d" stroke-width="2"/>
   <text x="28" y="42" fill="#00f2fe" font-family="monospace" font-size="18" font-weight="bold">OVERMIND // SELF-EVOLVING AGENT OS</text>
-  <text x="28" y="66" fill="#8b9bb4" font-family="monospace" font-size="12">Omniscient Autopoietic Kernel v2.0 (Powered by Centsible)</text>
+  <text x="28" y="66" fill="#8b9bb4" font-family="monospace" font-size="12">Post-Developer Singularity Kernel v3.0 (Powered by Centsible)</text>
   <rect x="520" y="22" width="132" height="36" rx="8" fill="#112233" stroke="#00f2fe" stroke-width="1.5"/>
   <text x="586" y="45" fill="#00f2fe" font-family="monospace" font-size="15" font-weight="bold" text-anchor="middle">LEVEL {data['level']}</text>
 

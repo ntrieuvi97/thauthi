@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "overmind-os"
-version = "2.0.0"
-description = "Overmind 2.0: The Omniscient Autopoietic Kernel for AI Coding Agents — Live Runtime Frame Tracing, In-Flight Self-Healing AST Surgery, Differential Shadow Proofs & Zero-Token Symbolic AST Crystals."
+version = "3.0.0"
+description = "Overmind 3.0: The Post-Developer Singularity Kernel — Omniscient Runtime Tracer, In-Flight Self-Healing AST Surgery, Differential Shadow Prover, Symbolic AST Crystals, Autonomous O(N^2)->O(N) Alchemist, Chronos I/O Time-Travel, CEGIS Program Synthesizer & Whole-Repo Call-Graph Hive."
 readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "MIT"}

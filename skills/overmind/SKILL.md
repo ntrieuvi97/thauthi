@@ -1,74 +1,54 @@
 ---
 name: overmind
 description: >-
-  Overmind 2.0: The Omniscient Autopoietic Kernel for AI coding agents (Antigravity & Claude Code) —
+  Overmind 3.0: The Post-Developer Singularity Kernel for AI coding agents (Antigravity & Claude Code) —
   Omniscient Runtime Tracer, In-Flight Self-Healing AST Surgery, Differential Shadow Prover,
-  Neural-to-Symbolic AST Crystallizer, Darwinian Gene Pool & Autopoietic Tool Forge.
+  Symbolic AST Crystallizer, Autonomous O(N^2)->O(N) Alchemist, Chronos I/O Time-Travel,
+  Contract-to-Code CEGIS Synthesizer & Whole-Repo Call-Graph Hive.
 ---
 
-# Overmind 2.0 Agent Skill 🧠⚡
+# Overmind 3.0 Agent Skill 🧠⚡
 
-Overmind 2.0 moves AI coding agents beyond the "Static Text Guessing Era" into the **Omniscient Runtime & Symbolic Compiler Era**:
-1. **Omniscient Runtime Tracer (`overmind trace`):** Hooks directly into `sys.settrace` to record live variable mutation timelines (`FrameDNA`) and Backward Dynamic Slicing (`CausalFaultReport`) when crashes occur.
+Overmind 3.0 moves AI coding agents beyond the "Static Text Guessing Era" into the **Post-Developer Runtime & Symbolic Compiler Singularity** via **8 Zero-Dependency Pillars**:
+1. **Omniscient Runtime Tracer (`overmind trace`):** Hooks `sys.settrace` to record live variable mutation timelines (`FrameDNA`) and Backward Dynamic Slicing (`CausalFaultReport`) when crashes occur.
 2. **In-Flight Self-Healing Immune System (`overmind heal` / `@overmind.immune`):** Intercepts unhandled exceptions in-flight, cryo-freezes call frames into `pytest` regression tests, synthesizes & verifies Counterfactual AST Patches in-memory against historical healthy frames, and hot-swaps the healed code without crashing.
 3. **Behavioral Invariant Miner & Differential Shadow Prover (`overmind prove`):** Mines Daikon-style runtime contracts and empirical $O(N)$ step complexity (`O(1)`, `O(log N)`, `O(N)`, `O(N^2)+`), running Old-AST vs. New-AST Differential Shadow Execution to mathematically replace manual human code review.
 4. **Neural-to-Symbolic AST Crystallizer (`overmind crystallize`):** Abstracts neural code edits (`before -> after`) into metavariable AST patterns (`__OM_V1__`) and compiles them into deterministic `<2ms`, `0-token` Symbolic AST Codemods.
+5. **Algorithmic Alchemist (`overmind optimize`):** Autonomously rewrites $O(N^2)$ nested membership/equality loops into $O(N)$ hash-set lookups and injects inline memoization into $O(2^N)$ recursive functions, mathematically proving 100% equivalence + empirical speedup via `DifferentialShadowProver`.
+6. **Chronos I/O Time-Travel Kernel (`overmind chronos` / `@overmind.time_travel`):** Intercepts network (`urllib`), clock (`time.time`), RNG (`random`), env, and external database/API helper boundaries into hermetic `ExecutionCassette`s (`.overmind/cassettes/`), replaying and healing stateful/impure functions in `<1ms` with zero side effects.
+7. **Contract-to-Code CEGIS Synthesizer (`overmind synthesize` / `@overmind.synthesize`):** Write only a function signature + docstring `>>>` doctests (with `pass` or `...` as the body) and Overmind's Counterexample-Guided Inductive Synthesis engine synthesizes, proves, and writes the pure $O(N)$ / $O(1)$ implementation automatically.
+8. **Whole-Repo Call-Graph Hive (`overmind hive`):** Indexes all function signatures and call sites across the repository, automatically repairing broken callers when parameter names are renamed, required arguments are added, or deprecated positional arguments are removed.
 
 ## Core Commands
 
-### 0. Onboard Any Repository (`overmind init`)
 ```bash
+# 0. Onboard Any Repository
 overmind init
-overmind init /path/to/repo --no-ci
-```
 
-### 1. Omniscient Runtime Tracer & Causal Fault Graph
-```bash
+# 1. Omniscient Runtime Tracer & Causal Fault Graph
 overmind trace path/to/script.py
-overmind trace path/to/script.py --json
-```
 
-### 2. In-Flight Self-Healing Immune System & AST Surgery
-```bash
-# Run script under Autopoietic Immune System (generates regression test + hot-heals crashes)
-overmind heal path/to/script.py
-overmind heal path/to/script.py --apply   # Also write verified AST patch back to source file
-```
-Or in Python code:
-```python
-from overmind import immune
+# 2. In-Flight Self-Healing Immune System & AST Surgery
+overmind heal path/to/script.py --apply
 
-@immune(auto_heal=True, persist_test=True)
-def compute_ratio(revenue: float, users: int) -> float:
-    return revenue / users
-```
-
-### 3. Behavioral Invariant Miner & Differential Shadow Prover
-```bash
-# Mine behavioral contracts & empirical O(N) complexity from a file
+# 3. Behavioral Invariant Miner & Differential Shadow Prover
 overmind prove --mine app.py
-
-# Mathematically prove equivalence, purity & complexity between Old AST and New AST
 overmind prove --before old_version.py --after new_version.py
-```
 
-### 4. Neural-to-Symbolic AST Crystallizer (0-Token Codemods)
-```bash
-# Compile a recurring code edit into a deterministic Symbolic AST Crystal
-overmind crystallize --name safe_dict_get \
-  --before "data[key]" \
-  --after "data.get(key, None)"
-
-# Apply all registered Symbolic AST Crystals across a file or repository in <2ms (0 tokens)
+# 4. Neural-to-Symbolic AST Crystallizer (0-Token Codemods)
+overmind crystallize --name safe_dict_get --before "data[key]" --after "data.get(key, None)"
 overmind crystallize --apply .
-overmind crystallize --list
-```
 
-### 5. Darwinian Gene Pool, Tool Forge & Scorecard
-```bash
-overmind status
-overmind evolve
-overmind forge --list
-overmind verify --run-tests
-overmind scorecard --svg overmind-scorecard.svg
+# 5. Algorithmic Alchemist (Autonomous O(N^2)->O(N) & O(2^N)->O(N) Optimizer)
+overmind optimize slow_module.py --apply
+
+# 6. Chronos I/O Virtualization & Time-Travel Replay
+overmind chronos --script stateful_worker.py
+overmind chronos --list
+
+# 7. Contract-to-Code CEGIS Program Synthesizer
+overmind synthesize specs.py --apply
+
+# 8. Whole-Repo Call-Graph Ripple Propagator
+overmind hive . --apply
 ```

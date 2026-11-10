@@ -1,7 +1,7 @@
 {
   "name": "overmind",
-  "version": "2.0.0",
-  "description": "Overmind 2.0: The Omniscient Autopoietic Kernel for AI Coding Agents — Live Runtime Frame Tracing, In-Flight Self-Healing AST Surgery, Differential Shadow Proofs & Symbolic AST Crystals.",
+  "version": "3.0.0",
+  "description": "Overmind 3.0: The Post-Developer Singularity Kernel for AI Coding Agents — Omniscient Runtime Tracer, Self-Healing AST Surgery, Differential Prover, Symbolic Crystals, O(N^2)->O(N) Alchemist, Chronos Time-Travel, CEGIS Synthesizer & Call-Graph Hive.",
   "author": "Vi Nguyen (@ntrieuvi97)",
   "homepage": "https://github.com/ntrieuvi97/overmind",
   "repository": {

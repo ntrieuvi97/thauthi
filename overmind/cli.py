@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Overmind 2.0 CLI — Unified command-line interface for the Omniscient Autopoietic Kernel.
+Overmind 3.0 CLI — Unified command-line interface for the Post-Developer Singularity Kernel.
 """
 
 import argparse
@@ -11,8 +11,11 @@ import sys
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
+from overmind.alchemist import AlgorithmicAlchemist
+from overmind.chronos import ChronosTimeMachine
 from overmind.crystallizer import NeuralSymbolicCrystallizer
 from overmind.gene_pool import DarwinianGenePool
+from overmind.hive import CallGraphHive
 from overmind.immune import AutopoieticImmuneSystem
 from overmind.initializer import RepoInitializer
 from overmind.kernel import CentsibleKernelBridge
@@ -24,6 +27,7 @@ from overmind.scorecard import (
     render_svg_card,
     render_terminal_scorecard,
 )
+from overmind.synthesizer import ContractSynthesizer
 from overmind.tool_forge import AutopoieticToolForge
 from overmind.verifier import ShadowVerifier
 
@@ -31,7 +35,7 @@ from overmind.verifier import ShadowVerifier
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="overmind",
-        description="Overmind 2.0: The Omniscient Autopoietic Kernel for AI Coding Agents.",
+        description="Overmind 3.0: The Post-Developer Singularity Kernel for AI Coding Agents.",
     )
     parser.add_argument("--facts-path", type=Path, default=None, help="Custom path to facts.jsonl")
     sub = parser.add_subparsers(dest="subcommand")
@@ -42,7 +46,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_status.add_argument("--json", action="store_true", help="Output JSON")
 
     # init (World-Scale Zero-Touch Repo Onboarding)
-    p_init = sub.add_parser("init", help="Bootstrap Overmind 2.0 into any repository (Git hook, GitHub Actions CI, Claude/Cursor/AGY configs, Team DNA)")
+    p_init = sub.add_parser("init", help="Bootstrap Overmind into any repository (Git hook, GitHub Actions CI, Claude/Cursor/AGY configs, Team DNA)")
     p_init.add_argument("path", nargs="?", type=Path, default=Path("."), help="Target repository directory (default: current directory)")
     p_init.add_argument("--no-ci", action="store_true", help="Skip generating .github/workflows/overmind.yml")
     p_init.add_argument("--no-git-hook", action="store_true", help="Skip installing .git/hooks/pre-commit")
@@ -77,6 +81,30 @@ def build_parser() -> argparse.ArgumentParser:
     p_crys.add_argument("--dry-run", action="store_true", help="Preview AST rewrites without modifying files")
     p_crys.add_argument("--list", action="store_true", help="List all compiled Symbolic AST Crystals")
     p_crys.add_argument("--json", action="store_true", help="Output JSON")
+
+    # optimize (Pillar 5: Algorithmic Alchemist — Autonomous O(N^2)->O(N) & O(2^N)->O(N))
+    p_opt = sub.add_parser("optimize", help="Autonomous O(N^2)->O(N) & O(2^N)->O(N) AST performance optimizer with equivalence proof")
+    p_opt.add_argument("file", type=Path, help="Python file to optimize and prove")
+    p_opt.add_argument("--apply", action="store_true", help="Write proven AST optimizations back to source file")
+    p_opt.add_argument("--json", action="store_true", help="Output JSON")
+
+    # chronos (Pillar 6: Deterministic I/O Virtualization & Time-Travel Replay)
+    p_chr = sub.add_parser("chronos", help="Record, list, or replay deterministic I/O & time-travel execution cassettes")
+    p_chr.add_argument("--script", type=Path, default=None, help="Execute script under Chronos I/O Virtualization & Time-Travel Healing")
+    p_chr.add_argument("--list", action="store_true", help="List recorded I/O execution cassettes in .overmind/cassettes")
+    p_chr.add_argument("--json", action="store_true", help="Output JSON")
+
+    # synthesize (Pillar 7: Contract-to-Code CEGIS Program Synthesizer)
+    p_syn = sub.add_parser("synthesize", help="Synthesize & prove function implementations from docstring >>> examples (CEGIS)")
+    p_syn.add_argument("file", type=Path, help="Python file containing stub functions (`pass` / `...`) with `>>>` doctests")
+    p_syn.add_argument("--apply", action="store_true", help="Write synthesized AST implementations directly into the source file")
+    p_syn.add_argument("--json", action="store_true", help="Output JSON")
+
+    # hive (Pillar 8: Whole-Repo Call-Graph Ripple Propagator)
+    p_hive = sub.add_parser("hive", help="Scan whole-repo call graph and auto-heal broken call sites after signature changes")
+    p_hive.add_argument("path", nargs="?", type=Path, default=Path("."), help="Repository directory to scan and heal")
+    p_hive.add_argument("--apply", action="store_true", help="Write call-site surgical fixes across all affected files")
+    p_hive.add_argument("--json", action="store_true", help="Output JSON")
 
     # fitness
     p_fit = sub.add_parser("fitness", help="Rank all agent skills/genes by Darwinian Fitness Score")
@@ -158,7 +186,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         if args.json:
             print(json.dumps(rep, ensure_ascii=False, indent=2))
         else:
-            print(f"🚀 Initialized Overmind 2.0 in repository: {rep['repository']}")
+            print(f"🚀 Initialized Overmind 3.0 in repository: {rep['repository']}")
             for f_rel in rep["files_configured"]:
                 print(f"  ✓ Configured: {f_rel}")
         return 0
@@ -189,7 +217,6 @@ def main(argv: Optional[List[str]] = None) -> int:
         script_path = args.script.resolve()
         immune_sys = AutopoieticImmuneSystem(storage_dir=script_path.parent / ".overmind")
         mod_globals = runpy.run_path(str(script_path), run_name="__overmind_heal__")
-        # Wrap all user functions in module and invoke `main()` if present
         for name, obj in list(mod_globals.items()):
             if inspect.isfunction(obj) and not name.startswith("_"):
                 mod_globals[name] = immune_sys.protect(obj, auto_heal=True, persist_test=True, apply_patch=args.apply)
@@ -284,6 +311,97 @@ def main(argv: Optional[List[str]] = None) -> int:
             return 0
 
         parser.error("Provide --name NAME --before ... --after ..., --apply PATH, or --list")
+
+    if args.subcommand == "optimize":
+        target_file = args.file.resolve()
+        alchemist = AlgorithmicAlchemist(storage_dir=target_file.parent / ".overmind")
+        new_src, reports = alchemist.optimize_file(target_file, apply=args.apply)
+        payload = {
+            "file": str(target_file),
+            "applied": args.apply,
+            "transmutations_count": len(reports),
+            "transmutations": [r.to_dict() for r in reports],
+        }
+        if args.json:
+            print(json.dumps(payload, ensure_ascii=False, indent=2))
+        else:
+            print(f"=== Overmind Algorithmic Alchemist: {target_file.name} ({len(reports)} optimization(s)) ===")
+            for r in reports:
+                print(
+                    f"  🧪 {r.func_name}() [{r.strategy}]: {r.old_complexity} -> {r.new_complexity} "
+                    f"(Steps: {r.old_steps_n45} -> {r.new_steps_n45}, Speedup: {r.speedup_ratio}x, Proven Equivalent: ✅)"
+                )
+        return 0
+
+    if args.subcommand == "chronos":
+        chronos_engine = ChronosTimeMachine()
+        if args.list:
+            cassettes = chronos_engine.load_cassettes()
+            if args.json:
+                print(json.dumps([c.to_dict() for c in cassettes], ensure_ascii=False, indent=2))
+            else:
+                print(f"=== Chronos I/O Time-Travel Cassettes ({len(cassettes)}) ===")
+                for c in cassettes:
+                    status = f"❌ {c.exception_type}" if c.exception_type else f"-> {c.return_value!r}"
+                    print(f"  ⏳ {c.cassette_id}: {c.func_name}({c.args}) {status} ({len(c.syscalls)} syscalls frozen)")
+            return 0
+
+        if args.script:
+            script_path = args.script.resolve()
+            chronos_local = ChronosTimeMachine(storage_dir=script_path.parent / ".overmind" / "cassettes")
+            mod_globals = runpy.run_path(str(script_path), run_name="__overmind_chronos__")
+            for name, obj in list(mod_globals.items()):
+                if inspect.isfunction(obj) and not name.startswith("_"):
+                    mod_globals[name] = chronos_local.protect(obj, auto_heal=True)
+                    if hasattr(obj, "__globals__"):
+                        obj.__globals__[name] = mod_globals[name]
+            if "main" in mod_globals and callable(mod_globals["main"]):
+                mod_globals["main"]()
+            cassettes = chronos_local.cassettes
+            if args.json:
+                print(json.dumps([c.to_dict() for c in cassettes], ensure_ascii=False, indent=2))
+            else:
+                print(f"=== Chronos Time-Travel Execution ({len(cassettes)} cassette(s) recorded) ===")
+                for c in cassettes:
+                    print(f"  ⏳ {c.cassette_id}: {c.func_name}({c.args}) -> {len(c.syscalls)} syscalls captured")
+            return 0
+
+        parser.error("Provide --script FILE.py or --list")
+
+    if args.subcommand == "synthesize":
+        target_file = args.file.resolve()
+        new_src, results = ContractSynthesizer.synthesize_file(target_file, apply=args.apply)
+        payload = {
+            "file": str(target_file),
+            "applied": args.apply,
+            "synthesized_count": len(results),
+            "results": [r.to_dict() for r in results],
+        }
+        if args.json:
+            print(json.dumps(payload, ensure_ascii=False, indent=2))
+        else:
+            print(f"=== Overmind CEGIS Program Synthesizer: {target_file.name} ({len(results)} synthesized) ===")
+            for r in results:
+                print(
+                    f"  🧬 {r.func_name}(): synthesized `return {r.synthesized_expr}` "
+                    f"[{r.complexity_class}, Pure={r.is_pure}, {r.examples_verified} examples proven]"
+                )
+        return 0
+
+    if args.subcommand == "hive":
+        hive = CallGraphHive(workspace_dir=args.path)
+        rep = hive.heal_workspace(apply=args.apply)
+        if args.json:
+            print(json.dumps(rep.to_dict(), ensure_ascii=False, indent=2))
+        else:
+            mode_tag = "APPLIED" if args.apply else "PREVIEW"
+            print(
+                f"=== Overmind Whole-Repo Call-Graph Hive [{mode_tag}] ===\n"
+                f"• Files Scanned: {rep.files_scanned} | Functions Indexed: {rep.functions_indexed} | Drifts Healed: {rep.drifts_detected}"
+            )
+            for fx in rep.fixes:
+                print(f"  🕸️ {fx.caller_file}:{fx.lineno} [{fx.drift_kind}]: `{fx.before_call}` -> `{fx.after_call}`")
+        return 0
 
     if args.subcommand == "fitness":
         pool = DarwinianGenePool(bridge=bridge, min_trials=args.min_trials)

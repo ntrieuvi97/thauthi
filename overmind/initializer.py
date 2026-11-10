@@ -83,15 +83,19 @@ jobs:
           overmind scorecard --markdown >> "$GITHUB_STEP_SUMMARY"
 """
 
-AGENT_RULE_MARKDOWN = """# Overmind 2.0 Omniscient Autopoietic Kernel Rules
+AGENT_RULE_MARKDOWN = """# Overmind 3.0 Post-Developer Singularity Kernel Rules
 
-When working in this repository, use the Overmind 2.0 CLI (`overmind`) to eliminate static guessing and guarantee zero-regression code:
+When working in this repository, use the Overmind 3.0 CLI (`overmind`) to eliminate static guessing and guarantee zero-regression code:
 
-1. **Runtime Fault Localization (`overmind trace <script.py>`):** Instead of guessing why a script crashes, run `overmind trace` to inspect the live `FrameDNA` and Backward Dynamic Causal Slice.
+1. **Runtime Fault Localization (`overmind trace <script.py>`):** Inspect live `FrameDNA` and Backward Dynamic Causal Slices instead of guessing why code crashes.
 2. **In-Flight Self-Healing (`overmind heal <script.py> --apply`):** Automatically synthesize `pytest` regression tests from crashing frames and verify AST patches in memory.
 3. **Mathematical Equivalence & Complexity Proof (`overmind prove --before <old.py> --after <new.py>`):** Prove semantic equivalence, input purity, and prevent `O(N) -> O(N^2)+` regressions.
 4. **Zero-Token AST Crystallization (`overmind crystallize`):** Compile recurring code patterns into `<2ms` symbolic AST codemods (`overmind crystallize --apply .`).
-5. **Pre-Completion Verification (`overmind verify --run-tests`):** Always run before finishing any task.
+5. **Autonomous O(N^2)->O(N) Optimization (`overmind optimize <file.py> --apply`):** Automatically transmute nested scans & exponential recursion with equivalence proofs.
+6. **Chronos Time-Travel Replay (`overmind chronos --script <file.py>`):** Record and replay stateful I/O cassettes in `<1ms` with zero side effects.
+7. **Contract-to-Code CEGIS Synthesis (`overmind synthesize <file.py> --apply`):** Synthesize proven code from docstring `>>>` examples.
+8. **Whole-Repo Call-Graph Hive (`overmind hive . --apply`):** Automatically repair broken callers across files after function signature changes.
+9. **Pre-Completion Verification (`overmind verify --run-tests`):** Always run before finishing any task.
 """
 
 
