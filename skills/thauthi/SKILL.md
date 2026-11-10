@@ -20,6 +20,16 @@ Thauthi 4.0 moves AI coding agents beyond the "Static Text Guessing Era" into th
 7. **Contract-to-Code CEGIS Synthesizer (`thauthi synthesize` / `@thauthi.synthesize`):** Write only a function signature + docstring `>>>` doctests (with `pass` or `...` as the body) and Thauthi's Counterexample-Guided Inductive Synthesis engine synthesizes, proves, and writes the pure $O(N)$ / $O(1)$ implementation automatically.
 8. **Whole-Repo Call-Graph Hive (`thauthi hive`):** Indexes all function signatures and call sites across the repository, automatically repairing broken callers when parameter names are renamed, required arguments are added, or deprecated positional arguments are removed.
 
+## Locating the CLI
+
+Every command below is `thauthi <subcommand>`. Check `command -v thauthi` first. If it is not on `PATH`, this plugin ships the same CLI (Python 3, standard library only, no install step). Run it from the plugin root, which is two directories above this file:
+
+```bash
+python3 <plugin-root>/bin/thauthi <subcommand>    # <plugin-root> = ../../ relative to this SKILL.md
+```
+
+Use that form in place of `thauthi` for every command below. The `thauthi-evolve` OpenClaw hook still needs `thauthi` on `PATH`; it is opt-in and not required for any command here.
+
 ## Core Commands
 
 ```bash

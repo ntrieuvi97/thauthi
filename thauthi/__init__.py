@@ -12,7 +12,7 @@ Combines the Centsible Reflex Kernel with 8 Autonomous Runtime & Compiler Pillar
 8. Whole-Repo Call-Graph Ripple Propagator (thauthi.hive)
 """
 
-__version__ = "4.0.12"
+__version__ = "4.0.13"
 
 from thauthi.alchemist import AlgorithmicAlchemist, TransmutationReport
 from thauthi.chronos import ChronosTimeMachine, ExecutionCassette, SyscallEvent, time_travel

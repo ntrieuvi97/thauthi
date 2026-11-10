@@ -10,7 +10,7 @@
     {
       "name": "thauthi",
       "description": "Omniscient Runtime Tracer, Self-Healing AST Surgery, Differential Prover, Symbolic AST Crystals, O(N^2)->O(N) Alchemist, Chronos I/O Time-Travel, CEGIS Synthesizer & Call-Graph Hive.",
-      "version": "4.0.12",
+      "version": "4.0.13",
       "source": "./",
       "category": "productivity",
       "skills": [
