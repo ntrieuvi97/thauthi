@@ -471,6 +471,10 @@ def main(argv: Optional[List[str]] = None) -> int:
             )
             for fx in rep.fixes:
                 print(f"  🕸️ {fx.caller_file}:{fx.lineno} [{fx.drift_kind}]: `{fx.before_call}` -> `{fx.after_call}`")
+            if rep.backup_dir:
+                print(f"• Originals backed up to: {rep.backup_dir}")
+            for sk in rep.skipped_files:
+                print(f"  ⚠️ Skipped (rewrite would not parse): {sk}")
         return 0
 
     if args.subcommand == "fitness":

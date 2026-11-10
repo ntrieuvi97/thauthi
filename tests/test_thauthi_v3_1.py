@@ -711,3 +711,52 @@ def test_hive_does_not_bind_builtin_method_calls_to_same_named_repo_function(tmp
     report = CallGraphHive(workspace_dir=repo).heal_workspace(apply=True)
     assert report.drifts_detected == 0
     assert (repo / "screener.py").read_text(encoding="utf-8") == caller_src
+
+
+def test_hive_apply_edits_only_the_call_and_backs_up_originals(tmp_path: Path) -> None:
+    repo = tmp_path / "surgical_repo"
+    repo.mkdir(parents=True)
+    (repo / "lib.py").write_text("def fee(amount):\n    return amount\n", encoding="utf-8")
+    caller_src = textwrap.dedent(
+        '''\
+        from lib import fee
+
+
+        def run(x):
+            """Docstring   with  odd   spacing."""
+            # keep this comment
+            label = f"total: {x!r:>8}"   # trailing comment
+            y = fee( x ,  "deprecated" )   # call to heal
+            return label,   y
+        '''
+    )
+    (repo / "caller.py").write_text(caller_src, encoding="utf-8")
+
+    report = CallGraphHive(workspace_dir=repo).heal_workspace(apply=True)
+    assert report.drifts_detected == 1
+    healed = (repo / "caller.py").read_text(encoding="utf-8")
+    assert healed == caller_src.replace('fee( x ,  "deprecated" )', "fee(x)")
+
+    assert report.backup_dir is not None
+    backup = Path(report.backup_dir) / "caller.py"
+    assert backup.read_text(encoding="utf-8") == caller_src
+    assert report.skipped_files == []
+
+    # backups live under .thauthi and must never be re-scanned/healed on the next run
+    again = CallGraphHive(workspace_dir=repo).heal_workspace(apply=True)
+    assert again.drifts_detected == 0 and again.backup_dir is None
+
+
+def test_hive_apply_handles_nested_fixed_calls(tmp_path: Path) -> None:
+    repo = tmp_path / "nested_repo"
+    repo.mkdir(parents=True)
+    (repo / "lib.py").write_text(
+        "def inner(a):\n    return a\n\ndef outer(b):\n    return b\n", encoding="utf-8"
+    )
+    (repo / "caller.py").write_text(
+        "from lib import inner, outer\n\nvalue = outer(inner(1, 2), 3)\n", encoding="utf-8"
+    )
+    CallGraphHive(workspace_dir=repo).heal_workspace(apply=True)
+    assert (repo / "caller.py").read_text(encoding="utf-8") == (
+        "from lib import inner, outer\n\nvalue = outer(inner(1))\n"
+    )

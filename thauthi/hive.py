@@ -18,11 +18,11 @@ Eliminates multi-file refactoring breakage and human tech-lead coordination by:
 import ast
 import copy
 import difflib
+from datetime import datetime, timezone
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
-from thauthi.srcedit import splice_source
 
 # Method names of builtin containers/str/bytes/file objects. A call like `x.get(k, 0)` with an
 # untyped receiver is overwhelmingly a builtin call, so the repo-wide unique-name fallback must
@@ -44,6 +44,31 @@ _BUILTIN_METHOD_NAMES = frozenset(
         "send", "put", "submit",
     }
 )
+
+
+def _apply_call_edits(src: str, edits: List[Tuple[int, int, int, int, str]]) -> str:
+    """Replace only the given call-expression spans in `src`; everything else stays byte-identical.
+
+    Each edit is `(lineno, col, end_lineno, end_col, replacement)` using `ast` positions
+    (1-based lines, UTF-8 byte columns). Spans nested inside another edit are dropped because the
+    outer replacement was unparsed from the already-healed subtree.
+    """
+    raw = src.encode("utf-8")
+    starts = [0]
+    for line in raw.splitlines(keepends=True):
+        starts.append(starts[-1] + len(line))
+    spans = sorted(
+        ((starts[l1 - 1] + c1, starts[l2 - 1] + c2, text) for l1, c1, l2, c2, text in edits),
+        key=lambda e: (e[0], -e[1]),
+    )
+    kept: List[Tuple[int, int, str]] = []
+    for start, end, text in spans:
+        if kept and start < kept[-1][1]:
+            continue
+        kept.append((start, end, text))
+    for start, end, text in reversed(kept):
+        raw = raw[:start] + text.encode("utf-8") + raw[end:]
+    return raw.decode("utf-8")
 
 
 @dataclass
@@ -87,6 +112,8 @@ class HivePropagationReport:
     drifts_detected: int
     files_healed: List[str] = field(default_factory=list)
     fixes: List[CallSiteSurgicalFix] = field(default_factory=list)
+    backup_dir: Optional[str] = None
+    skipped_files: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -95,6 +122,8 @@ class HivePropagationReport:
             "drifts_detected": self.drifts_detected,
             "files_healed": self.files_healed,
             "fixes": [f.to_dict() for f in self.fixes],
+            "backup_dir": self.backup_dir,
+            "skipped_files": self.skipped_files,
         }
 
 
@@ -412,6 +441,8 @@ class CallGraphHive:
 
         all_fixes: List[CallSiteSurgicalFix] = []
         healed_files: List[str] = []
+        skipped_files: List[str] = []
+        backup_root: Optional[Path] = None
 
         for fpath in py_files:
             rel_path_obj = fpath.relative_to(self.workspace_dir)
@@ -428,6 +459,7 @@ class CallGraphHive:
                 tree, mod_name, is_pkg_init, index
             )
             file_fixes: List[CallSiteSurgicalFix] = []
+            file_edits: List[Tuple[int, int, int, int, str]] = []
 
             class _CallSiteHealer(ast.NodeTransformer):
                 def __init__(self) -> None:
@@ -665,14 +697,31 @@ class CallGraphHive:
                             after_call=after_str,
                         )
                     )
+                    end_lineno = getattr(node, "end_lineno", None)
+                    end_col = getattr(node, "end_col_offset", None)
+                    if end_lineno is not None and end_col is not None:
+                        file_edits.append((node.lineno, node.col_offset, end_lineno, end_col, after_str))
                     return mutated_node
 
-            new_tree = ast.fix_missing_locations(_CallSiteHealer().visit(tree))
-            if file_fixes:
-                all_fixes.extend(file_fixes)
-                healed_files.append(rel_path)
-                if apply:
-                    fpath.write_text(splice_source(orig_src, new_tree), encoding="utf-8")
+            _CallSiteHealer().visit(tree)
+            if not file_fixes:
+                continue
+            if apply:
+                new_src = _apply_call_edits(orig_src, file_edits)
+                try:
+                    ast.parse(new_src, filename=str(fpath))
+                except SyntaxError:
+                    skipped_files.append(rel_path)
+                    continue
+                if backup_root is None:
+                    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+                    backup_root = self.workspace_dir / ".thauthi" / "hive-backup" / stamp
+                backup_path = backup_root / rel_path_obj
+                backup_path.parent.mkdir(parents=True, exist_ok=True)
+                backup_path.write_text(orig_src, encoding="utf-8")
+                fpath.write_text(new_src, encoding="utf-8")
+            all_fixes.extend(file_fixes)
+            healed_files.append(rel_path)
 
         return HivePropagationReport(
             files_scanned=len(py_files),
@@ -680,4 +729,6 @@ class CallGraphHive:
             drifts_detected=len(all_fixes),
             files_healed=healed_files,
             fixes=all_fixes,
+            backup_dir=str(backup_root) if backup_root else None,
+            skipped_files=skipped_files,
         )
