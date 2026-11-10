@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Overmind 2.0 Universal Installer (macOS / Linux / WSL / CI) 🧠⚡
+# Overmind 3.0 Universal Installer (macOS / Linux / WSL / CI) 🧠⚡
 # Supports both:
 #   1) Remote 1-liner: curl -fsSL https://raw.githubusercontent.com/ntrieuvi97/overmind/main/install.sh | bash
 #   2) Local clone:    ./install.sh
@@ -21,15 +21,15 @@ else
     REPO_DIR="$HOME/.overmind/repo"
     mkdir -p "$HOME/.overmind"
     if [ -d "$REPO_DIR/.git" ]; then
-        echo "• Updating Overmind 2.0 in $REPO_DIR..."
+        echo "• Updating Overmind 3.0 in $REPO_DIR..."
         git -C "$REPO_DIR" pull --ff-only >/dev/null 2>&1 || true
     else
-        echo "• Cloning Overmind 2.0 from $OVERMIND_GIT_URL..."
+        echo "• Cloning Overmind 3.0 from $OVERMIND_GIT_URL..."
         git clone --depth 1 "$OVERMIND_GIT_URL" "$REPO_DIR"
     fi
 fi
 
-echo "=== Installing Overmind 2.0: Omniscient Autopoietic Kernel 🧠⚡ ==="
+echo "=== Installing Overmind 3.0: Post-Developer Singularity Kernel 🧠⚡ ==="
 echo "• Source Directory: $REPO_DIR"
 
 chmod +x "$REPO_DIR/bin/overmind"
@@ -74,4 +74,4 @@ export PATH="$LOCAL_BIN:$PATH"
 echo ""
 "$LOCAL_BIN/overmind" status || true
 echo ""
-echo "🎉 Overmind 2.0 is ready! Run 'overmind init' inside any repo to onboard your team & CI."
+echo "🎉 Overmind 3.0 is ready! Run 'overmind init' inside any repo to onboard your team & CI."

@@ -7,10 +7,12 @@ import argparse
 import inspect
 import json
 import runpy
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
+from overmind import __version__
 from overmind.alchemist import AlgorithmicAlchemist
 from overmind.chronos import ChronosTimeMachine
 from overmind.crystallizer import NeuralSymbolicCrystallizer
@@ -37,6 +39,7 @@ def build_parser() -> argparse.ArgumentParser:
         prog="overmind",
         description="Overmind 3.0: The Post-Developer Singularity Kernel for AI Coding Agents.",
     )
+    parser.add_argument("-v", "--version", action="version", version=f"Overmind v{__version__}")
     parser.add_argument("--facts-path", type=Path, default=None, help="Custom path to facts.jsonl")
     sub = parser.add_subparsers(dest="subcommand")
 
@@ -153,6 +156,10 @@ def build_parser() -> argparse.ArgumentParser:
     # hook (Antigravity & Claude Code lifecycle integration)
     p_hook = sub.add_parser("hook", help="Lifecycle hook handler for Antigravity, Claude Code & OpenClaw")
     p_hook.add_argument("event", choices=["stop", "post-session"], help="Hook event name")
+
+    # update (Self-updater for Overmind installation)
+    p_upd = sub.add_parser("update", help="Self-update Overmind to the latest release from GitHub")
+    p_upd.add_argument("--json", action="store_true", help="Output JSON")
 
     return parser
 
@@ -557,6 +564,40 @@ def main(argv: Optional[List[str]] = None) -> int:
         sys.stdout.write("{}\n")
         sys.stdout.flush()
         return 0
+
+    if args.subcommand == "update":
+        install_root = Path(__file__).resolve().parent.parent
+        if (install_root / ".git").exists():
+            proc = subprocess.run(
+                ["git", "-C", str(install_root), "pull", "--ff-only"],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            ok = proc.returncode == 0
+            msg = (proc.stdout or proc.stderr).strip()
+        else:
+            proc = subprocess.run(
+                [sys.executable, "-m", "pip", "install", "--upgrade", "git+https://github.com/ntrieuvi97/overmind.git"],
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            ok = proc.returncode == 0
+            msg = (proc.stdout or proc.stderr).strip()
+
+        payload = {
+            "updated": ok,
+            "install_root": str(install_root),
+            "version": __version__,
+            "output": msg,
+        }
+        if args.json:
+            print(json.dumps(payload, ensure_ascii=False, indent=2))
+        else:
+            status_icon = "✅" if ok else "❌"
+            print(f"{status_icon} Overmind Self-Update ({install_root}): {msg}")
+        return 0 if ok else 1
 
     return 0
 
