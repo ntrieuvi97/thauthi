@@ -13,6 +13,7 @@ Eliminates manual performance engineering by:
    DifferentialShadowProver before accepting or applying any optimization.
 """
 
+from thauthi.safepaths import iter_python_files
 import ast
 import copy
 import json
@@ -892,10 +893,7 @@ class AlgorithmicAlchemist:
         resolved = file_path.resolve()
         if resolved.is_dir():
             all_reports: List[TransmutationReport] = []
-            for p in sorted(resolved.rglob("*.py")):
-                rel_parts = p.relative_to(resolved).parts
-                if any(part in IGNORED_SCAN_DIRS for part in rel_parts):
-                    continue
+            for p in iter_python_files(resolved, IGNORED_SCAN_DIRS):
                 try:
                     _, f_reports = self.optimize_file(p, apply=apply)
                     all_reports.extend(f_reports)
@@ -905,6 +903,8 @@ class AlgorithmicAlchemist:
 
         src = resolved.read_text(encoding="utf-8")
         new_src, reports = self.optimize_source(src, source_path=resolved)
+        if apply and reports and file_path.is_symlink():
+            raise ValueError(f"Refusing to write through symlink: {file_path}")
         if apply and reports:
             backup_before_write(resolved)
             resolved.write_text(new_src, encoding="utf-8")
@@ -925,12 +925,7 @@ class AlgorithmicAlchemist:
                 "optimized_source": new_src,
             }
 
-        py_files: List[Path] = []
-        for p in sorted(root.rglob("*.py")):
-            rel_parts = p.relative_to(root).parts
-            if any(part in IGNORED_SCAN_DIRS for part in rel_parts):
-                continue
-            py_files.append(p)
+        py_files: List[Path] = iter_python_files(root, IGNORED_SCAN_DIRS)
 
         files_optimized: List[str] = []
         all_reports: List[TransmutationReport] = []

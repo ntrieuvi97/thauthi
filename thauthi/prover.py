@@ -2,7 +2,7 @@
 """
 Pillar 3: Behavioral Invariant Miner & Differential Shadow Prover.
 
-Replaces manual Human Code Review with mathematical runtime verification:
+Replaces manual Human Code Review with sampled differential runtime verification (not a formal proof):
 - Automatically mines Daikon-style Behavioral Contracts (purity, determinism,
   output bounds, dict key schemas, length invariants).
 - Empirically classifies algorithmic time/step complexity (O(1), O(log N), O(N), O(N^2)+)
@@ -64,16 +64,23 @@ class DifferentialProofReport:
     passed: bool
     functions_compared: int
     results: List[FunctionProofResult]
+    missing_in_new: List[str] = field(default_factory=list)
+    inconclusive_reason: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             "passed": self.passed,
             "functions_compared": self.functions_compared,
             "results": [r.to_dict() for r in self.results],
+            "missing_in_new": list(self.missing_in_new),
+            "inconclusive_reason": self.inconclusive_reason,
         }
 
     def render_summary(self) -> str:
-        verdict_tag = "✅ MATHEMATICALLY PROVEN" if self.passed else "❌ REGRESSION DETECTED"
+        if self.inconclusive_reason:
+            verdict_tag = f"⚠️ INCONCLUSIVE ({self.inconclusive_reason})"
+        else:
+            verdict_tag = "✅ EQUIVALENT ON SAMPLED INPUTS" if self.passed else "❌ REGRESSION DETECTED"
         lines = [
             f"=== Thauthi Differential Shadow Prover: {verdict_tag} ===",
             f"• Functions Compared: {self.functions_compared}",
@@ -559,6 +566,20 @@ class DifferentialShadowProver:
         ]
         results: List[FunctionProofResult] = []
         all_passed = True
+        # Fail closed: functions that existed before but vanished/renamed are an interface mismatch.
+        missing_in_new = [
+            name for name in old_funcs
+            if name not in new_funcs and (target_funcs is None or name in target_funcs)
+        ]
+        if target_funcs:
+            missing_in_new += sorted(n for n in target_funcs if n not in old_funcs and n not in new_funcs)
+        inconclusive_reason: Optional[str] = None
+        if missing_in_new:
+            all_passed = False
+            inconclusive_reason = "functions missing in new version: " + ", ".join(sorted(set(missing_in_new)))
+        elif not shared_names:
+            all_passed = False
+            inconclusive_reason = "no functions were compared"
 
         for name in shared_names:
             old_fn = old_funcs[name]
@@ -668,4 +689,6 @@ class DifferentialShadowProver:
             passed=all_passed,
             functions_compared=len(results),
             results=results,
+            missing_in_new=sorted(set(missing_in_new)),
+            inconclusive_reason=inconclusive_reason,
         )

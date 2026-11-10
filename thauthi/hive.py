@@ -15,6 +15,7 @@ Eliminates multi-file refactoring breakage and human tech-lead coordination by:
    arguments (via type-inferred safe defaults), and excess deprecated arguments.
 """
 
+from thauthi.safepaths import iter_python_files
 import ast
 import copy
 import difflib
@@ -292,12 +293,7 @@ class CallGraphHive:
         self.workspace_dir = (workspace_dir or Path.cwd()).resolve()
 
     def _iter_python_files(self) -> List[Path]:
-        py_files: List[Path] = []
-        for p in sorted(self.workspace_dir.rglob("*.py")):
-            if any(part in self.IGNORE_DIRS for part in p.parts):
-                continue
-            py_files.append(p)
-        return py_files
+        return iter_python_files(self.workspace_dir, self.IGNORE_DIRS)
 
     def index_repo_symbols(self, py_files: Optional[List[Path]] = None) -> RepoSymbolIndex:
         files = py_files if py_files is not None else self._iter_python_files()

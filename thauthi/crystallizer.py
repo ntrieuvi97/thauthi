@@ -12,6 +12,7 @@ Upgrades Thauthi from bash command wrappers to a Neural-Symbolic AST Compiler:
   and binds them to the Centsible Reflex Kernel.
 """
 
+from thauthi.safepaths import is_within
 import ast
 import copy
 import hashlib
@@ -252,9 +253,16 @@ class NeuralSymbolicCrystallizer:
         self,
         bridge: Optional[CentsibleKernelBridge] = None,
         crystals_dir: Optional[Path] = None,
+        workspace_dir: Optional[Path] = None,
     ):
+        """
+        `workspace_dir` (when given) is the authorized workspace: crystals are stored under
+        `<workspace>/.thauthi/crystals`, are bound to that workspace, and can only be applied to
+        paths inside it. Without it, behaviour is unscoped (library use / tests).
+        """
         self.bridge = bridge or CentsibleKernelBridge()
-        self.crystals_dir = crystals_dir or (Path.home() / ".thauthi" / "crystals")
+        self.workspace_dir: Optional[Path] = Path(workspace_dir).resolve() if workspace_dir else None
+        self.crystals_dir = crystals_dir or ((self.workspace_dir or Path.cwd().resolve()) / ".thauthi" / "crystals")
         self.registry_file = self.crystals_dir / "registry.json"
 
     def load_registry(self) -> Dict[str, Dict[str, Any]]:
@@ -304,7 +312,7 @@ def main() -> int:
     parser.add_argument("--json", action="store_true", help="Output JSON")
     args = parser.parse_args()
 
-    crystallizer = NeuralSymbolicCrystallizer()
+    crystallizer = NeuralSymbolicCrystallizer(workspace_dir=Path.cwd())
     report = crystallizer.apply_pattern_to_path(
         target_path=Path(args.target),
         before_pattern={before_pattern!r},
@@ -367,7 +375,10 @@ if __name__ == "__main__":
         fact_id = f"fact_{clean_slug}"
         self.bridge.add_fact(
             pattern=auto_trigger,
-            fact=f"MUST RUN: 'python3 {tool_path} .' (0-token Symbolic AST Crystal: {b_pat} -> {a_pat})",
+            fact=(
+                f"OPTIONAL (review diff first): 'python3 {tool_path} . --dry-run' then rerun without --dry-run "
+                f"only inside the workspace that created it (0-token Symbolic AST Crystal: {b_pat} -> {a_pat})"
+            ),
             category="symbolic-crystal",
             fact_id=fact_id,
         )
@@ -384,7 +395,9 @@ if __name__ == "__main__":
             fact_id=fact_id,
         )
         reg = self.load_registry()
-        reg[clean_slug] = crystal.to_dict()
+        entry = crystal.to_dict()
+        entry["workspace"] = str(self.workspace_dir) if self.workspace_dir else None
+        reg[clean_slug] = entry
         self.save_registry(reg)
         return crystal
 
@@ -408,6 +421,8 @@ if __name__ == "__main__":
         after_pattern: str,
         dry_run: bool = False,
     ) -> Dict[str, Any]:
+        if self.workspace_dir is not None and not is_within(target_path, self.workspace_dir):
+            raise ValueError(f"Refusing to apply crystal outside authorized workspace {self.workspace_dir}: {target_path}")
         files: List[Path] = []
         if target_path.is_file() and target_path.suffix == ".py" and not target_path.is_symlink():
             files.append(target_path)
@@ -454,7 +469,11 @@ if __name__ == "__main__":
         reg = self.load_registry()
         reports = []
         total_rewrites = 0
-        for slug, info in reg.items():
+        skipped_foreign: List[str] = []
+        for slug, info in list(reg.items()):
+            if self.workspace_dir is not None and info.get("workspace") != str(self.workspace_dir):
+                skipped_foreign.append(slug)
+                continue
             rep = self.apply_pattern_to_path(
                 target_path=target_path,
                 before_pattern=info["before_pattern"],
@@ -469,7 +488,8 @@ if __name__ == "__main__":
         if not dry_run and reg:
             self.save_registry(reg)
         return {
-            "crystals_evaluated": len(reg),
+            "crystals_evaluated": len(reg) - len(skipped_foreign),
+            "crystals_skipped_other_workspace": skipped_foreign,
             "total_rewrites": total_rewrites,
             "reports": reports,
         }

@@ -101,7 +101,7 @@ class ThauthiMCPServer:
                 "name": "thauthi_prove",
                 "description": (
                     "Run BehavioralInvariantMiner or DifferentialShadowProver (Old AST vs New AST) "
-                    "with randomized property fuzzing and O(N) complexity verification to mathematically "
+                    "with randomized property fuzzing and O(N) complexity verification to "
                     "prove semantic equivalence, argument purity, and zero asymptotic regression. "
                     "WARNING: EXECUTES the given code (imports, module-level assignments and every "
                     "public function, with fuzzed inputs) in this process, unsandboxed."
@@ -122,7 +122,7 @@ class ThauthiMCPServer:
                 "name": "thauthi_optimize",
                 "description": (
                     "Run AlgorithmicAlchemist on a Python file, directory, or inline snippet to detect and optimize "
-                    "O(N^2)->O(N) loops and O(2^N)->O(N) recursion, mathematically proving behavioral equivalence "
+                    "O(N^2)->O(N) loops and O(2^N)->O(N) recursion, verifying behavioral equivalence on sampled inputs "
                     "before returning or applying. WARNING: EXECUTES the target code (imports, module-level "
                     "assignments and every public function, with fuzzed inputs) in this process, unsandboxed."
                 ),
@@ -416,7 +416,7 @@ class ThauthiMCPServer:
 
         if name == "thauthi_crystallize":
             action = str(args.get("action") or "list")
-            crys = NeuralSymbolicCrystallizer(bridge=bridge)
+            crys = NeuralSymbolicCrystallizer(bridge=bridge, workspace_dir=self.workspace_dir)
             if action == "list":
                 return {"crystals": crys.load_registry()}
             if action == "create":

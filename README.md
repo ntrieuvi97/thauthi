@@ -1,9 +1,9 @@
 # 🧠 Thauthi (Thấu Thị) 4.0: The Post-Developer Singularity Kernel
 
-> **Beyond Static Text Guessing — The World's First Runtime-Omniscient, Self-Healing, Mathematically Proven, Self-Optimizing & Self-Synthesizing OS for AI Coding Agents**  
+> **Beyond Static Text Guessing — The World's First Runtime-Omniscient, Self-Healing, Differentially Verified, Self-Optimizing & Self-Synthesizing OS for AI Coding Agents**  
 > *Why did AI agents (Devin, Claude Code, Cursor, SWE-agent) still need human Senior Engineers? Because they read static text files like blind men reading Braille, guessed what happened in memory, broke callers across files, wrote $O(N^2)$ loops, couldn't replay stateful I/O crashes, and burned thousands of LLM tokens repeating the same code edits. **Thauthi 4.0** hooks directly into the live Python runtime, I/O syscall boundary, and AST compiler to end the Human Imperative Coding Era.*
 
-[![Version: 4.0.9](https://img.shields.io/badge/Version-4.0.9-00f2fe.svg)](#)
+[![Version: 4.0.10](https://img.shields.io/badge/Version-4.0.10-00f2fe.svg)](#)
 [![Kernel: Omniscient + Centsible](https://img.shields.io/badge/Kernel-Omniscient_%2B_Centsible-orange.svg)](https://github.com/ntrieuvi97/centsible)
 [![Dependencies: Zero (Stdlib)](https://img.shields.io/badge/Dependencies-Zero_%28Python_Stdlib%29-brightgreen.svg)](#)
 [![Runtimes: Antigravity | Claude Code | OpenClaw](https://img.shields.io/badge/Runtimes-Antigravity_%7C_Claude_Code_%7C_OpenClaw-purple.svg)](#)
@@ -19,7 +19,7 @@ Every existing multi-agent wrapper operates on **dead static text**. Thauthi 4.0
 |---|---|---|---|
 | 👁️ **1. Omniscient Runtime Tracer & Causal Fault Graph** | `thauthi.omniscient` | Grep files, read 10,000 tokens of text, *guess* what variables held at crash time. | Hooks `sys.settrace` to record live `FrameDNA` variable mutations & runs **Backward Dynamic Slicing** to isolate the exact root-cause line and state transition. |
 | 🩹 **2. In-Flight Self-Healing Immune System** | `thauthi.immune` | Process crashes -> waits hours for human bug report -> human prompts LLM -> LLM guesses a fix. | `@immune` intercepts unhandled crashes **in-flight**, cryo-freezes the call frame into a `pytest` regression test, tests candidate **AST Surgeries** in-memory against all historical healthy frames, and hot-swaps the healed code without crashing! |
-| ⚖️ **3. Behavioral Invariant Miner & Differential Shadow Prover** | `thauthi.prover` | Relies on human Code Review because unit tests miss edge cases, argument mutation, or $O(N^2)$ slowdowns. | Mines **Daikon-style Behavioral Contracts** & empirical step complexity (`O(1)`, `O(N)`, `O(N^2)+`), running **Old-AST vs. New-AST Differential Shadow Execution** to mathematically prove zero regression. |
+| ⚖️ **3. Behavioral Invariant Miner & Differential Shadow Prover** | `thauthi.prover` | Relies on human Code Review because unit tests miss edge cases, argument mutation, or $O(N^2)$ slowdowns. | Mines **Daikon-style Behavioral Contracts** & empirical step complexity (`O(1)`, `O(N)`, `O(N^2)+`), running **Old-AST vs. New-AST Differential Shadow Execution** to check for regressions on sampled inputs. |
 | 💎 **4. Neural-to-Symbolic AST Crystallizer** | `thauthi.crystallizer` | Burns 2,000+ LLM tokens every time a similar code pattern needs refactoring across files. | Abstracts neural code edits (`Before AST -> After AST`) into metavariable templates (`__OM_V1__`) and compiles them into **0-token Symbolic AST Codemods** executing in `<2ms`. |
 | 🧪 **5. Algorithmic Alchemist (`O(N^2) -> O(N)` Optimizer)** | `thauthi.alchemist` | Senior Perf Engineers manually profile bottlenecks, replace nested list scans with hash sets, and add memoization. | Autonomously detects $O(N^2)$ nested membership/equality loops and $O(2^N)$ unmemoized recursion, synthesizes $O(1)$ hash-set & inline memo AST transmutations, and proves 100% equivalence + empirical speedup via `DifferentialShadowProver`! |
 | ⏳ **6. Chronos I/O Virtualization & Time-Travel Kernel** | `thauthi.chronos` | Production crashes inside DB/HTTP/clock-dependent code cannot be reproduced locally because external state changed. | Hooks `time.time`, `random`, `urllib`, `os.getenv`, and external API/DB helpers into hermetic **`ExecutionCassette`s**, replaying and healing stateful I/O functions in `<1ms` with **0 external network calls**! |
@@ -54,7 +54,7 @@ flowchart TD
     IM -->|"Candidate AST Patch"| PR
     AL -->|"Complexity Transmutation"| PR
     SY -->|"Synthesized AST"| PR
-    PR -->|"Mathematically Proven AST"| CR
+    PR -->|"Differentially Verified AST"| CR
     CR -->|"Repo-Wide Propagation"| HV
 ```
 
@@ -95,7 +95,7 @@ thauthi init
 ## 🚀 Core Workflows & Live Demonstrations (Zero Dependencies)
 
 ### 1. 🧪 Autonomous $O(N^2) \to O(N)$ & $O(2^N) \to O(N)$ Optimization (`thauthi optimize`)
-Automatically eliminate quadratic list scans and exponential recursion with mathematical equivalence proofs:
+Automatically eliminate quadratic list scans and exponential recursion with sampled-input differential equivalence checks (not a formal proof):
 ```bash
 thauthi optimize slow_service.py --apply
 ```

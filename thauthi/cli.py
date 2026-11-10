@@ -235,7 +235,22 @@ def main(argv: Optional[List[str]] = None) -> int:
     if args.subcommand == "heal":
         script_path = args.script.resolve()
         immune_sys = AutopoieticImmuneSystem(storage_dir=script_path.parent / ".thauthi")
-        mod_globals = runpy.run_path(str(script_path), run_name="__thauthi_heal__")
+        try:
+            mod_globals = runpy.run_path(str(script_path), run_name="__thauthi_heal__")
+        except Exception as exc:
+            msg = (
+                f"heal: {script_path.name} crashed at module level ({type(exc).__name__}: {exc}) before any "
+                "function could be protected. Move the entry point into `def main():` (heal protects functions "
+                "and runs main()), or use `thauthi trace` to diagnose."
+            )
+            if args.json:
+                print(json.dumps({"script": str(script_path), "mode": args.mode, "error": msg,
+                                  "surgeries_performed": 0, "surgeries": []}, ensure_ascii=False, indent=2))
+            else:
+                print(msg, file=sys.stderr)
+            return 1
+        if not ("main" in mod_globals and callable(mod_globals["main"])):
+            print(f"heal: warning: {script_path.name} defines no main(); nothing was executed under protection.", file=sys.stderr)
         for name, obj in list(mod_globals.items()):
             if inspect.isfunction(obj) and not name.startswith("_"):
                 mod_globals[name] = immune_sys.protect(
@@ -307,7 +322,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         parser.error("Provide --before OLD.py --after NEW.py, or --mine FILE.py")
 
     if args.subcommand == "crystallize":
-        crys = NeuralSymbolicCrystallizer(bridge=bridge)
+        crys = NeuralSymbolicCrystallizer(bridge=bridge, workspace_dir=Path.cwd())
         if args.list:
             reg = crys.load_registry()
             if args.json:

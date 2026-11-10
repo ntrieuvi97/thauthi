@@ -23,11 +23,12 @@ PRE_COMMIT_MARKER = "# >>> thauthi-pre-commit >>>"
 PRE_COMMIT_SCRIPT = f"""#!/usr/bin/env bash
 {PRE_COMMIT_MARKER}
 if command -v thauthi >/dev/null 2>&1; then
-    echo "🧠 [Thauthi 2.0] Running pre-commit Adversarial Shadow Verifier & Symbolic Crystals..."
+    echo "🧠 [Thauthi 4.0] Running pre-commit Adversarial Shadow Verifier (crystals: review-only dry-run)..."
     if [ -f ".thauthi/dna.jsonl" ]; then
         thauthi dna import --path .thauthi/dna.jsonl >/dev/null 2>&1 || true
     fi
-    thauthi crystallize --apply . >/dev/null 2>&1 || true
+    # Review-only: never rewrite files from a git hook. Run `thauthi crystallize --apply .` manually after reviewing.
+    thauthi crystallize --apply . --dry-run || true
     thauthi verify
 fi
 # <<< thauthi-pre-commit <<<
@@ -92,7 +93,7 @@ When working in this repository, use the Thauthi 4.0 CLI (`thauthi`) to eliminat
 
 1. **Runtime Fault Localization (`thauthi trace <script.py>`):** Inspect live `FrameDNA` and Backward Dynamic Causal Slices instead of guessing why code crashes.
 2. **In-Flight Self-Healing (`thauthi heal <script.py> --apply`):** Automatically synthesize `pytest` regression tests from crashing frames and verify AST patches in memory.
-3. **Mathematical Equivalence & Complexity Proof (`thauthi prove --before <old.py> --after <new.py>`):** Prove semantic equivalence, input purity, and prevent `O(N) -> O(N^2)+` regressions.
+3. **Differential Equivalence & Complexity Check (sampled inputs) (`thauthi prove --before <old.py> --after <new.py>`):** Check semantic equivalence on sampled inputs, input purity, and prevent `O(N) -> O(N^2)+` regressions.
 4. **Zero-Token AST Crystallization (`thauthi crystallize`):** Compile recurring code patterns into `<2ms` symbolic AST codemods (`thauthi crystallize --apply .`).
 5. **Autonomous O(N^2)->O(N) Optimization (`thauthi optimize <file.py> --apply`):** Automatically transmute nested scans & exponential recursion with equivalence proofs.
 6. **Chronos Time-Travel Replay (`thauthi chronos --script <file.py>`):** Record and replay stateful I/O cassettes in `<1ms` with zero side effects. **Privacy:** cassettes are NOT redacted and may contain credentials/tokens/PII; keep `.thauthi/cassettes/` out of git and CI artifacts and never record against production secrets.

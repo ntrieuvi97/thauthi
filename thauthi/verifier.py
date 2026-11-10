@@ -9,6 +9,7 @@ Acts as an uncompromising autonomous Principal Engineer before an agent session 
 - Optionally runs the repository's fast test suite to guarantee zero regression.
 """
 
+from thauthi.safepaths import iter_python_files
 import os
 import py_compile
 import re
@@ -31,12 +32,7 @@ class ShadowVerifier:
         self.workspace_dir = (workspace_dir or Path.cwd()).resolve()
 
     def _collect_python_files(self) -> List[Path]:
-        files: List[Path] = []
-        for p in self.workspace_dir.rglob("*.py"):
-            if any(part in IGNORED_DIRS for part in p.parts):
-                continue
-            files.append(p)
-        return sorted(files)
+        return iter_python_files(self.workspace_dir, IGNORED_DIRS)
 
     def verify_workspace(self, run_tests: bool = False, timeout: int = 60) -> Dict[str, Any]:
         py_files = self._collect_python_files()
