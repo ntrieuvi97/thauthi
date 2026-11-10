@@ -98,6 +98,19 @@ else
 echo "! $MCP_ROOT not found; set THAUTHI_MCP_ROOT and re-run to register the Antigravity MCP server"
 fi
 
+# 3b. Claude Code MCP server (user scope in ~/.claude.json; Claude does not read the Antigravity config above).
+# Remove-then-add keeps it idempotent and refreshes --root on re-run.
+if command -v claude >/dev/null 2>&1 && [ -d "$MCP_ROOT" ]; then
+    claude mcp remove thauthi -s user >/dev/null 2>&1 || true
+    if claude mcp add thauthi -s user -- "$LOCAL_BIN/thauthi" mcp --root "$MCP_ROOT" >/dev/null 2>&1; then
+        echo "✓ Registered Claude Code MCP server (user scope, --root $MCP_ROOT)"
+    else
+        echo "! 'claude mcp add' failed; run: claude mcp add thauthi -s user -- $LOCAL_BIN/thauthi mcp --root $MCP_ROOT"
+    fi
+else
+    echo "! claude CLI or $MCP_ROOT not found; skipped Claude Code MCP registration"
+fi
+
 # 4. Make `import thauthi` work from any project: a .pth file in each interpreter's user site-packages.
 # shortcut: user-site .pth only covers interpreters on PATH at install time, re-run after adding one.
 for PY in python3 python3.9 python3.10 python3.11 python3.12 python3.13 python3.14; do
