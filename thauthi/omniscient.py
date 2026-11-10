@@ -205,7 +205,7 @@ class OmniscientTracer:
         self.target_files = {str(Path(p).resolve()) for p in target_files} if target_files else None
         self.target_funcs = set(target_funcs) if target_funcs else None
         self.max_steps_per_frame = max_steps_per_frame
-        self.storage_dir = storage_dir or (Path.cwd() / ".overmind" / "frames")
+        self.storage_dir = storage_dir or (Path.cwd() / ".thauthi" / "frames")
         self.recorded_frames: List[FrameDNA] = []
         self.fault_reports: List[CausalFaultReport] = []
         self._active_stack: Dict[int, Dict[str, Any]] = {}
@@ -224,8 +224,8 @@ class OmniscientTracer:
         if filename.startswith("<") and not filename.startswith("<omniscient"):
             return False
 
-        # Ignore Overmind's own internal tracer/immune machinery unless explicitly targeted
-        if "overmind/omniscient.py" in filename.replace("\\", "/") or "overmind/immune.py" in filename.replace("\\", "/"):
+        # Ignore Thauthi's own internal tracer/immune machinery unless explicitly targeted
+        if "thauthi/omniscient.py" in filename.replace("\\", "/") or "thauthi/immune.py" in filename.replace("\\", "/"):
             if not self.target_funcs or func_name not in self.target_funcs:
                 return False
 

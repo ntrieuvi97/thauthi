@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Entrypoint launcher for Overmind (resolves symlinks portably across macOS/Linux)."""
+"""Entrypoint launcher for Thauthi (resolves symlinks portably across macOS/Linux)."""
 import os
 import sys
 from pathlib import Path
@@ -9,11 +9,11 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 try:
-    from overmind.cli import main
+    from thauthi.cli import main
 except BaseException as e:
     if any(arg == "hook" for arg in sys.argv[1:2]):
-        if os.environ.get("OVERMIND_DEBUG"):
-            sys.stderr.write(f"[overmind:hook-fallback] Failed to load overmind: {e}\n")
+        if os.environ.get("THAUTHI_DEBUG"):
+            sys.stderr.write(f"[thauthi:hook-fallback] Failed to load thauthi: {e}\n")
         sys.exit(0)
     raise
 
@@ -22,7 +22,7 @@ if __name__ == "__main__":
         sys.exit(main())
     except BaseException as e:
         if any(arg == "hook" for arg in sys.argv[1:2]):
-            if os.environ.get("OVERMIND_DEBUG"):
-                sys.stderr.write(f"[overmind:hook-fallback] Hook execution error: {e}\n")
+            if os.environ.get("THAUTHI_DEBUG"):
+                sys.stderr.write(f"[thauthi:hook-fallback] Hook execution error: {e}\n")
             sys.exit(0)
         raise

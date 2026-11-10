@@ -11,7 +11,7 @@ Eliminates "Works on My Machine" and stateful production debugging by:
    - Scoped File Reads (`open` in the target function's module namespace)
    - External module/global & async boundary helpers (`db_query`, `fetch_api`, etc.)
 2. Freezing the exact sequence of boundary calls into a hermetic `ExecutionCassette`
-   (`.overmind/cassettes/<cassette_id>.json`).
+   (`.thauthi/cassettes/<cassette_id>.json`).
 3. Replaying any recorded cassette in < 1ms with zero network/DB/subprocess/disk side effects,
    enabling `CounterfactualSurgeon` to heal impure, async, networked, and DB-dependent
    functions with 100% determinism.
@@ -39,7 +39,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple
 
-from overmind.immune import CounterfactualSurgeon, RecordedCallFrame
+from thauthi.immune import CounterfactualSurgeon, RecordedCallFrame
 
 
 @dataclass
@@ -402,7 +402,7 @@ class ChronosTimeMachine:
     """
 
     def __init__(self, storage_dir: Optional[Path] = None):
-        self.storage_dir = storage_dir or (Path.cwd() / ".overmind" / "cassettes")
+        self.storage_dir = storage_dir or (Path.cwd() / ".thauthi" / "cassettes")
         self.cassettes: List[ExecutionCassette] = []
 
     @contextmanager

@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-Darwinian Gene Pool for Overmind.
+Darwinian Gene Pool for Thauthi.
 
 Treats every Centsible micro-fact and forged tool skill as a living evolutionary gene:
 - Computes Bayesian-smoothed Fitness Scores (0..100) from real agent execution telemetry.
 - Mutates underperforming ("recessive") genes by tightening noisy regex triggers and
   sharpening vague directives into executable imperative contracts.
-- Drives natural selection: promotes high-fitness genes to Elite DNA (.overmind/dna.jsonl)
-  and banishes multi-generation failures to the Graveyard (~/.overmind/graveyard.jsonl).
+- Drives natural selection: promotes high-fitness genes to Elite DNA (.thauthi/dna.jsonl)
+  and banishes multi-generation failures to the Graveyard (~/.thauthi/graveyard.jsonl).
 """
 
 import hashlib
@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from overmind.kernel import RISKY_COMMAND_RE, CentsibleKernelBridge, get_overmind_home
+from thauthi.kernel import RISKY_COMMAND_RE, CentsibleKernelBridge, get_thauthi_home
 
 DEFAULT_MIN_TRIALS = 5
 ELITE_FITNESS_THRESHOLD = 72.0
@@ -137,7 +137,7 @@ def mutate_pattern_and_directive(
     if not quoted_cmd:
         # Look for common CLI command tokens inside the directive, stopping before prose connectors
         cmd_match = re.search(
-            r"\b((?:pytest|python3?|npm|pnpm|yarn|cargo|go|git|uv|poetry|make|overmind|centsible)"
+            r"\b((?:pytest|python3?|npm|pnpm|yarn|cargo|go|git|uv|poetry|make|thauthi|centsible)"
             r"(?:\s+(?!(?:for|to|when|if|in|on|with|before|after|because|so)\b)[A-Za-z0-9_./:=-]+)+)",
             new_directive,
         )
@@ -171,7 +171,7 @@ class DarwinianGenePool:
     ):
         self.bridge = bridge or CentsibleKernelBridge()
         self.min_trials = min_trials
-        self.home_dir = home_dir or get_overmind_home()
+        self.home_dir = home_dir or get_thauthi_home()
         self.lineage_path = self.home_dir / "lineage.jsonl"
         self.graveyard_path = self.home_dir / "graveyard.jsonl"
 
@@ -355,10 +355,10 @@ class DarwinianGenePool:
 
     def export_dna(self, output_path: Optional[Path] = None, include_active: bool = False) -> Path:
         """
-        Export Elite (and optionally Active) genes to a portable `.overmind/dna.jsonl` file
+        Export Elite (and optionally Active) genes to a portable `.thauthi/dna.jsonl` file
         so any repo or teammate can inherit the evolved intelligence.
         """
-        target = output_path or (Path.cwd() / ".overmind" / "dna.jsonl")
+        target = output_path or (Path.cwd() / ".thauthi" / "dna.jsonl")
         target.parent.mkdir(parents=True, exist_ok=True)
         population = self.evaluate_population()
         allowed = {"elite", "active"} if include_active else {"elite"}

@@ -1,4 +1,4 @@
-name: Overmind 2.0 Autonomous Verification & Evolution Gate
+name: Thauthi 2.0 Autonomous Verification & Evolution Gate
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: [ main, master ]
 
 jobs:
-  overmind-gate:
+  thauthi-gate:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -20,7 +20,7 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install Overmind 2.0 Kernel & Project Dependencies
+      - name: Install Thauthi 2.0 Kernel & Project Dependencies
         run: |
           python -m pip install --upgrade pip pytest
           python -m pip install -e .
@@ -30,16 +30,16 @@ jobs:
 
       - name: Import Team Elite DNA & Apply 0-Token Symbolic AST Crystals
         run: |
-          if [ -f ".overmind/dna.jsonl" ]; then
-            overmind dna import --path .overmind/dna.jsonl
+          if [ -f ".thauthi/dna.jsonl" ]; then
+            thauthi dna import --path .thauthi/dna.jsonl
           fi
-          overmind crystallize --apply . --dry-run
+          thauthi crystallize --apply . --dry-run
 
       - name: Run Adversarial Shadow Verifier & Test Suite
         run: |
-          overmind verify --run-tests
+          thauthi verify --run-tests
 
-      - name: Publish Overmind Evolution Scorecard to PR Summary
+      - name: Publish Thauthi Evolution Scorecard to PR Summary
         if: always()
         run: |
-          overmind scorecard --markdown >> "$GITHUB_STEP_SUMMARY"
+          thauthi scorecard --markdown >> "$GITHUB_STEP_SUMMARY"

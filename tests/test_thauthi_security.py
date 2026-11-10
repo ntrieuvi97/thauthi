@@ -4,11 +4,11 @@ import ast
 import json
 from pathlib import Path
 
-from overmind.gene_pool import DarwinianGenePool
-from overmind.kernel import CentsibleKernelBridge
-from overmind.mcp_server import OvermindMCPServer
-from overmind.srcedit import splice_source
-from overmind.tool_forge import AutopoieticToolForge
+from thauthi.gene_pool import DarwinianGenePool
+from thauthi.kernel import CentsibleKernelBridge
+from thauthi.mcp_server import ThauthiMCPServer
+from thauthi.srcedit import splice_source
+from thauthi.tool_forge import AutopoieticToolForge
 
 
 def test_prove_does_not_run_module_level_statements(tmp_path: Path) -> None:
@@ -18,8 +18,8 @@ def test_prove_does_not_run_module_level_statements(tmp_path: Path) -> None:
         f"for _ in range(1):\n    open({str(marker)!r}, 'w').write('x')\n"
         "def f(a):\n    return a\n"
     )
-    server = OvermindMCPServer(workspace_dir=tmp_path)
-    res = server.call_tool("overmind_prove", {"mine_source": src})
+    server = ThauthiMCPServer(workspace_dir=tmp_path)
+    res = server.call_tool("thauthi_prove", {"mine_source": src})
     assert res["isError"] is False
     assert not marker.exists()
 
@@ -29,9 +29,9 @@ def test_mcp_rejects_paths_outside_workspace(tmp_path: Path) -> None:
     ws.mkdir()
     outside = tmp_path / "outside.py"
     outside.write_text("def f(a):\n    return a\n", encoding="utf-8")
-    server = OvermindMCPServer(workspace_dir=ws)
+    server = ThauthiMCPServer(workspace_dir=ws)
     for args in ({"file_path": str(outside)}, {"file_path": "../outside.py", "apply": True}):
-        res = server.call_tool("overmind_optimize", args)
+        res = server.call_tool("thauthi_optimize", args)
         assert res["isError"] is True
         assert "escapes MCP workspace" in res["content"][0]["text"]
 

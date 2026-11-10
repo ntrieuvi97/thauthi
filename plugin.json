@@ -1,12 +1,12 @@
 {
-  "name": "overmind",
-  "version": "3.1.0",
-  "description": "Overmind 3.0: The Post-Developer Singularity Kernel for AI Coding Agents — Omniscient Runtime Tracer, Self-Healing AST Surgery, Differential Prover, Symbolic Crystals, O(N^2)->O(N) Alchemist, Chronos Time-Travel, CEGIS Synthesizer & Call-Graph Hive.",
+  "name": "thauthi",
+  "version": "4.0.0",
+  "description": "Thauthi 3.0: The Post-Developer Singularity Kernel for AI Coding Agents — Omniscient Runtime Tracer, Self-Healing AST Surgery, Differential Prover, Symbolic Crystals, O(N^2)->O(N) Alchemist, Chronos Time-Travel, CEGIS Synthesizer & Call-Graph Hive.",
   "author": "Vi Nguyen (@ntrieuvi97)",
-  "homepage": "https://github.com/ntrieuvi97/overmind",
+  "homepage": "https://github.com/ntrieuvi97/thauthi",
   "repository": {
     "type": "git",
-    "url": "https://github.com/ntrieuvi97/overmind.git"
+    "url": "https://github.com/ntrieuvi97/thauthi.git"
   },
   "hooks": "hooks.json",
   "skills": "skills"

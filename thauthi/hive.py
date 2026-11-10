@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Pillar 8: Whole-Repo Call-Graph Ripple Propagator (`overmind.hive`).
+Pillar 8: Whole-Repo Call-Graph Ripple Propagator (`thauthi.hive`).
 
 Eliminates multi-file refactoring breakage and human tech-lead coordination by:
 1. Indexing all top-level functions, async functions, and class methods across an
@@ -22,7 +22,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
-from overmind.srcedit import splice_source
+from thauthi.srcedit import splice_source
 
 
 @dataclass
@@ -236,7 +236,7 @@ class CallGraphHive:
     detects broken call sites caused by signature evolution, and heals callers automatically.
     """
 
-    IGNORE_DIRS = {".git", "__pycache__", ".pytest_cache", ".venv", "venv", "node_modules", ".overmind"}
+    IGNORE_DIRS = {".git", "__pycache__", ".pytest_cache", ".venv", "venv", "node_modules", ".thauthi"}
 
     def __init__(self, workspace_dir: Optional[Path] = None):
         self.workspace_dir = (workspace_dir or Path.cwd()).resolve()

@@ -2,13 +2,13 @@
 """
 Pillar 4: Neural-to-Symbolic AST Crystallizer (Zero-Token Codemod Compiler).
 
-Upgrades Overmind from bash command wrappers to a Neural-Symbolic AST Compiler:
+Upgrades Thauthi from bash command wrappers to a Neural-Symbolic AST Compiler:
 - Mines code edits (`before_code` -> `after_code`) and abstracts local variable
   names into symbolic metavariables (`__OM_V1__`, `__OM_V2__`) while preserving
   structural anchors (function/method names, operators, keyword arguments).
 - Compiles the transformation into a reusable `SymbolicCrystal` that rewrites
   matching AST subtrees across any file or repository in < 2ms with 0 LLM tokens.
-- Synthesizes standalone CLI codemod binaries (`~/.overmind/crystals/cr_<slug>.py`)
+- Synthesizes standalone CLI codemod binaries (`~/.thauthi/crystals/cr_<slug>.py`)
   and binds them to the Centsible Reflex Kernel.
 """
 
@@ -24,8 +24,8 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
-from overmind.kernel import CentsibleKernelBridge
-from overmind.srcedit import splice_source
+from thauthi.kernel import CentsibleKernelBridge
+from thauthi.srcedit import splice_source
 
 BUILTIN_ANCHORS = {
     "len", "range", "enumerate", "zip", "map", "filter", "sorted", "reversed",
@@ -254,7 +254,7 @@ class NeuralSymbolicCrystallizer:
         crystals_dir: Optional[Path] = None,
     ):
         self.bridge = bridge or CentsibleKernelBridge()
-        self.crystals_dir = crystals_dir or (Path.home() / ".overmind" / "crystals")
+        self.crystals_dir = crystals_dir or (Path.home() / ".thauthi" / "crystals")
         self.registry_file = self.crystals_dir / "registry.json"
 
     def load_registry(self) -> Dict[str, Dict[str, Any]]:
@@ -280,7 +280,7 @@ class NeuralSymbolicCrystallizer:
         tool_path = self.crystals_dir / f"{slug}.py"
         code = f'''#!/usr/bin/env python3
 """
-Overmind Symbolic AST Crystal: {title}
+Thauthi Symbolic AST Crystal: {title}
 Before AST Pattern: {before_pattern}
 After AST Pattern:  {after_pattern}
 Executes deterministically in <2ms with 0 LLM tokens.
@@ -291,7 +291,7 @@ import json
 import sys
 from pathlib import Path
 
-from overmind.crystallizer import NeuralSymbolicCrystallizer
+from thauthi.crystallizer import NeuralSymbolicCrystallizer
 
 
 def main() -> int:

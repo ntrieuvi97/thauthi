@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Overmind <-> Centsible Reflex Kernel Bridge.
+Thauthi <-> Centsible Reflex Kernel Bridge.
 
 Dynamically binds to the Centsible engine (either installed in site-packages,
 located in a sibling repository, or installed in ~/.gemini/config/plugins/centsible)
@@ -24,10 +24,10 @@ RISKY_COMMAND_RE = re.compile(
 )
 
 
-def get_overmind_home() -> Path:
-    """Return ~/.overmind or $OVERMIND_HOME."""
-    env_home = os.environ.get("OVERMIND_HOME")
-    base = Path(env_home).expanduser().resolve() if env_home else (Path.home() / ".overmind")
+def get_thauthi_home() -> Path:
+    """Return ~/.thauthi or $THAUTHI_HOME."""
+    env_home = os.environ.get("THAUTHI_HOME")
+    base = Path(env_home).expanduser().resolve() if env_home else (Path.home() / ".thauthi")
     base.mkdir(parents=True, exist_ok=True)
     return base
 
@@ -77,7 +77,7 @@ class StandaloneFactsKernel:
     """
 
     def __init__(self, storage_path: Optional[Path] = None, global_path: Optional[Path] = None):
-        self.storage_path = storage_path or (get_overmind_home() / "facts.jsonl")
+        self.storage_path = storage_path or (get_thauthi_home() / "facts.jsonl")
         self.global_path = global_path
         self.metrics_path = self.storage_path.parent / "metrics.json"
 
@@ -183,7 +183,7 @@ class StandaloneFactsKernel:
 def _resolve_smart_facts_path() -> Path:
     """
     Resolve default Centsible facts.jsonl path without letting an empty `.claude/`
-    or `.agents/` directory (created by `overmind init` for hooks/rules) shadow an
+    or `.agents/` directory (created by `thauthi init` for hooks/rules) shadow an
     existing store in `.agents/` or `~/.centsible/projects/<repo>-<hash>/`.
     """
     from core.facts_engine import get_default_facts_path
@@ -268,7 +268,7 @@ class CentsibleKernelBridge:
             self.engine: Any = FactsEngine(storage_path=target_path, global_path=get_global_facts_path())
             self.storage_path = self.engine.storage_path
         else:
-            target_path = facts_path or (get_overmind_home() / "facts.jsonl")
+            target_path = facts_path or (get_thauthi_home() / "facts.jsonl")
             self.engine = StandaloneFactsKernel(storage_path=target_path)
             self.storage_path = self.engine.storage_path
 

@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-End-to-End Verification Suite for Overmind 3.1 (Roadmap Phase 1):
-1. Zero-Dependency MCP Server (`overmind mcp`) over JSONL and LSP Content-Length stdio
+End-to-End Verification Suite for Thauthi 3.1 (Roadmap Phase 1):
+1. Zero-Dependency MCP Server (`thauthi mcp`) over JSONL and LSP Content-Length stdio
 2. 100+ Property-Based Fuzzing Prover + Alchemist Duplicate-Preserving Frequency Join
 3. Hybrid Neural-Symbolic CEGIS Synthesizer (multi-statement + candidate validation)
 4. Policy-Gated Immune System (`mode="shadow-pr"` raising loudly with cryo-test + unified `.diff`)
 5. Multi-File Scope-Aware CallGraphHive (import aliases, module calls, class methods, kw-only args)
 6. Async & Production I/O Virtualization in Chronos (`async def`, `sqlite3`, `subprocess`, `datetime`, `uuid`, `open`)
-7. `overmind init` MCP config generation without clobbering existing MCP entries
+7. `thauthi init` MCP config generation without clobbering existing MCP entries
 """
 
 import asyncio
@@ -23,14 +23,14 @@ from typing import Any, Dict, List
 
 import pytest
 
-from overmind.alchemist import AlgorithmicAlchemist
-from overmind.chronos import ChronosTimeMachine
-from overmind.cli import build_parser, main as cli_main
-from overmind.hive import CallGraphHive
-from overmind.immune import AutopoieticImmuneSystem
-from overmind.mcp_server import OvermindMCPServer
-from overmind.prover import BehavioralInvariantMiner, DifferentialShadowProver
-from overmind.synthesizer import ContractSynthesizer
+from thauthi.alchemist import AlgorithmicAlchemist
+from thauthi.chronos import ChronosTimeMachine
+from thauthi.cli import build_parser, main as cli_main
+from thauthi.hive import CallGraphHive
+from thauthi.immune import AutopoieticImmuneSystem
+from thauthi.mcp_server import ThauthiMCPServer
+from thauthi.prover import BehavioralInvariantMiner, DifferentialShadowProver
+from thauthi.synthesizer import ContractSynthesizer
 
 
 def _parse_lsp_frames(raw_bytes: bytes) -> List[Dict[str, Any]]:
@@ -57,7 +57,7 @@ def test_phase1_mcp_server_jsonl_and_lsp_framing_and_tool_dispatch(tmp_path: Pat
     assert parsed.subcommand == "mcp"
     assert parsed.root == tmp_path
 
-    server = OvermindMCPServer(workspace_dir=tmp_path)
+    server = ThauthiMCPServer(workspace_dir=tmp_path)
 
     # 1. Newline-delimited JSON-RPC (initialize, notification, tools/list, tools/call with noisy user stdout)
     jsonl_requests = [
@@ -69,7 +69,7 @@ def test_phase1_mcp_server_jsonl_and_lsp_framing_and_tool_dispatch(tmp_path: Pat
             "id": 3,
             "method": "tools/call",
             "params": {
-                "name": "overmind_trace",
+                "name": "thauthi_trace",
                 "arguments": {
                     "source_code": textwrap.dedent(
                         """\
@@ -88,7 +88,7 @@ def test_phase1_mcp_server_jsonl_and_lsp_framing_and_tool_dispatch(tmp_path: Pat
             "id": 4,
             "method": "tools/call",
             "params": {
-                "name": "overmind_prove",
+                "name": "thauthi_prove",
                 "arguments": {
                     "before_source": "def f(nums: list) -> int:\n    return sum(x for x in nums if x > 0)\n",
                     "after_source": "def f(nums: list) -> int:\n    t = 0\n    for n in nums:\n        if n > 0:\n            t += n\n    return t\n",
@@ -100,7 +100,7 @@ def test_phase1_mcp_server_jsonl_and_lsp_framing_and_tool_dispatch(tmp_path: Pat
             "id": 5,
             "method": "tools/call",
             "params": {
-                "name": "overmind_synthesize",
+                "name": "thauthi_synthesize",
                 "arguments": {
                     "source_code": textwrap.dedent(
                         """\
@@ -127,9 +127,9 @@ def test_phase1_mcp_server_jsonl_and_lsp_framing_and_tool_dispatch(tmp_path: Pat
     lines = [json.loads(line) for line in out_buf.getvalue().decode("utf-8").splitlines() if line.strip()]
     # Notification produces no response -> 5 responses for IDs 1..5
     assert [m["id"] for m in lines] == [1, 2, 3, 4, 5]
-    assert lines[0]["result"]["serverInfo"]["name"] == "overmind"
+    assert lines[0]["result"]["serverInfo"]["name"] == "thauthi"
     tool_names = {t["name"] for t in lines[1]["result"]["tools"]}
-    assert {"overmind_trace", "overmind_prove", "overmind_optimize", "overmind_synthesize", "overmind_hive", "overmind_chronos", "overmind_verify"} <= tool_names
+    assert {"thauthi_trace", "thauthi_prove", "thauthi_optimize", "thauthi_synthesize", "thauthi_hive", "thauthi_chronos", "thauthi_verify"} <= tool_names
 
     # Verify user stdout didn't corrupt JSON-RPC wire and was captured cleanly inside tool payload
     trace_payload = json.loads(lines[2]["result"]["content"][0]["text"])
@@ -152,7 +152,7 @@ def test_phase1_mcp_server_jsonl_and_lsp_framing_and_tool_dispatch(tmp_path: Pat
             "jsonrpc": "2.0",
             "id": 11,
             "method": "tools/call",
-            "params": {"name": "overmind_verify", "arguments": {"workspace_path": str(tmp_path)}},
+            "params": {"name": "thauthi_verify", "arguments": {"workspace_path": str(tmp_path)}},
         },
     ]
     lsp_raw = b""
@@ -201,7 +201,7 @@ def test_phase1_property_fuzzing_prover_and_alchemist_frequency_map(tmp_path: Pa
     assert len(rep.results[0].counterexamples) >= 1
 
     # 2. Verify AlgorithmicAlchemist rejects the broken set version and picks `nested_equality_to_frequency_map`!
-    alchemist = AlgorithmicAlchemist(storage_dir=tmp_path / ".overmind")
+    alchemist = AlgorithmicAlchemist(storage_dir=tmp_path / ".thauthi")
     opt_src, reports = alchemist.optimize_source(slow_dups)
     assert len(reports) == 1
     assert reports[0].strategy == "nested_equality_to_frequency_map"
@@ -266,7 +266,7 @@ def test_phase1_hybrid_neural_cegis_synthesizer_and_multi_statement_file(tmp_pat
 
 
 def test_phase1_immune_shadow_pr_mode_raises_loudly_with_diff_and_cryo_test(tmp_path: Path) -> None:
-    immune_sys = AutopoieticImmuneSystem(storage_dir=tmp_path / ".overmind")
+    immune_sys = AutopoieticImmuneSystem(storage_dir=tmp_path / ".thauthi")
 
     @immune_sys.protect(auto_heal=True, persist_test=True, apply_patch=False, mode="shadow-pr")
     def charge_split(amount: float, split: int) -> float:
@@ -296,7 +296,7 @@ def test_phase1_immune_shadow_pr_mode_raises_loudly_with_diff_and_cryo_test(tmp_
     proc = subprocess.run([sys.executable, "-m", "pytest", str(reg_file), "-q"], capture_output=True, text=True, timeout=15)
     assert proc.returncode == 0
 
-    # Verify CLI `overmind heal --mode shadow-pr` exits 1 while emitting surgery + diff JSON
+    # Verify CLI `thauthi heal --mode shadow-pr` exits 1 while emitting surgery + diff JSON
     strict_script = tmp_path / "strict_ledger.py"
     strict_script.write_text(
         textwrap.dedent(
@@ -431,7 +431,7 @@ def test_phase1_chronos_async_sqlite_subprocess_datetime_uuid_open_virtualizatio
     process_order_async.__globals__["fetch_bonus"] = fetch_bonus
     process_order_async.__globals__["datetime"] = datetime
 
-    chronos = ChronosTimeMachine(storage_dir=tmp_path / ".overmind" / "cassettes")
+    chronos = ChronosTimeMachine(storage_dir=tmp_path / ".thauthi" / "cassettes")
     protected = chronos.protect(process_order_async, auto_heal=True)
 
     async def _run() -> None:
@@ -479,8 +479,8 @@ def test_phase1_init_scaffolds_mcp_configs_without_clobbering(tmp_path: Path) ->
     root_mcp = json.loads((repo / ".mcp.json").read_text(encoding="utf-8"))
     cursor_mcp = json.loads((repo / ".cursor" / "mcp.json").read_text(encoding="utf-8"))
     assert "custom_server" in root_mcp["mcpServers"]
-    assert root_mcp["mcpServers"]["overmind"] == {"command": "overmind", "args": ["mcp", "--root", "."]}
-    assert cursor_mcp["mcpServers"]["overmind"] == {"command": "overmind", "args": ["mcp", "--root", "."]}
+    assert root_mcp["mcpServers"]["thauthi"] == {"command": "thauthi", "args": ["mcp", "--root", "."]}
+    assert cursor_mcp["mcpServers"]["thauthi"] == {"command": "thauthi", "args": ["mcp", "--root", "."]}
 
 
 def test_alchemist_preserves_future_annotations_module_imports_helpers_and_docstrings(tmp_path: Path) -> None:
@@ -536,7 +536,7 @@ def test_alchemist_preserves_future_annotations_module_imports_helpers_and_docst
         encoding="utf-8",
     )
 
-    alchemist = AlgorithmicAlchemist(storage_dir=tmp_path / ".overmind")
+    alchemist = AlgorithmicAlchemist(storage_dir=tmp_path / ".thauthi")
     new_src, reports = alchemist.optimize_file(target_mod, apply=True)
     by_name = {r.func_name: r for r in reports}
 
@@ -618,7 +618,7 @@ def test_alchemist_directory_scanning_cli_and_mcp(tmp_path: Path, capsys: pytest
         encoding="utf-8",
     )
 
-    # 1. Test CLI `overmind optimize <dir> --json` (preview mode)
+    # 1. Test CLI `thauthi optimize <dir> --json` (preview mode)
     rc = cli_main(["optimize", str(pkg_dir), "--json"])
     assert rc == 0
     cli_out = json.loads(capsys.readouterr().out)
@@ -627,9 +627,9 @@ def test_alchemist_directory_scanning_cli_and_mcp(tmp_path: Path, capsys: pytest
     assert cli_out["applied"] is False
     assert "_om_set_" not in f1.read_text(encoding="utf-8")
 
-    # 2. Test MCP `overmind_optimize` on directory with `apply=True`
-    server = OvermindMCPServer(workspace_dir=tmp_path)
-    mcp_res = server.call_tool("overmind_optimize", {"file_path": str(pkg_dir), "apply": True})
+    # 2. Test MCP `thauthi_optimize` on directory with `apply=True`
+    server = ThauthiMCPServer(workspace_dir=tmp_path)
+    mcp_res = server.call_tool("thauthi_optimize", {"file_path": str(pkg_dir), "apply": True})
     assert mcp_res["isError"] is False
     mcp_payload = json.loads(mcp_res["content"][0]["text"])
     assert mcp_payload["files_scanned"] == 2
@@ -674,7 +674,7 @@ def test_alchemist_resolves_relative_and_with_guarded_imports_inside_packages(tm
     )
     assert funcs["match_rel"]([1, 2], [2]) == [6]
 
-    new_src, reports = AlgorithmicAlchemist(storage_dir=tmp_path / ".overmind").optimize_file(target)
+    new_src, reports = AlgorithmicAlchemist(storage_dir=tmp_path / ".thauthi").optimize_file(target)
     assert [r.func_name for r in reports] == ["match_rel"]
     assert "from ..utils import norm" in new_src and "with contextlib.suppress(ImportError):" in new_src
 

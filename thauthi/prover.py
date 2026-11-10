@@ -21,7 +21,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
-from overmind.omniscient import OmniscientTracer
+from thauthi.omniscient import OmniscientTracer
 
 
 @dataclass
@@ -75,7 +75,7 @@ class DifferentialProofReport:
     def render_summary(self) -> str:
         verdict_tag = "✅ MATHEMATICALLY PROVEN" if self.passed else "❌ REGRESSION DETECTED"
         lines = [
-            f"=== Overmind Differential Shadow Prover: {verdict_tag} ===",
+            f"=== Thauthi Differential Shadow Prover: {verdict_tag} ===",
             f"• Functions Compared: {self.functions_compared}",
         ]
         for res in self.results:
@@ -189,7 +189,7 @@ def _generate_fuzz_pool(kind: str, rng: random.Random, count: int, is_recursive:
 
     if kind == "str":
         alphabet = "abcxyz01_ -"
-        edges = ["", " ", "a", "aa", "radar", "level", "hello world", "  OverMind  ", "αβγ"]
+        edges = ["", " ", "a", "aa", "radar", "level", "hello world", "  ThauThi  ", "αβγ"]
         for i in range(count):
             if i < len(edges):
                 out.append(edges[i])
@@ -260,7 +260,7 @@ def synthesize_domain_inputs(
         "int": [0, 1, -1, 5, 12, -7, 25] if is_rec else [0, 1, -1, 5, 12, -7, 100],
         "float": [0.0, 1.0, -1.5, 10.5, 100.0],
         "bool": [True, False],
-        "str": ["", "a", "overmind", "hello world"],
+        "str": ["", "a", "thauthi", "hello world"],
         "list": [[], [1], [3, 1, 2], [-2, 0, 4, 8], [1, 2, 2, 3, 5]],
         "dict": [{}, {"id": 1, "value": 10}, {"id": 2, "value": 0, "name": "test"}],
     }

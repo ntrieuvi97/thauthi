@@ -1,13 +1,13 @@
 {
-  "name": "overmind",
-  "version": "3.1.0",
-  "description": "Overmind 3.0: The Post-Developer Singularity Kernel for Claude Code and Antigravity",
+  "name": "thauthi",
+  "version": "4.0.0",
+  "description": "Thauthi 3.0: The Post-Developer Singularity Kernel for Claude Code and Antigravity",
   "author": {
     "name": "Vi Nguyen",
     "url": "https://github.com/ntrieuvi97"
   },
-  "homepage": "https://github.com/ntrieuvi97/overmind",
-  "repository": "https://github.com/ntrieuvi97/overmind",
+  "homepage": "https://github.com/ntrieuvi97/thauthi",
+  "repository": "https://github.com/ntrieuvi97/thauthi",
   "license": "MIT",
   "hooks": [
     "./claude-hooks.json"

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Overmind 3.1 Zero-Dependency MCP Server (`overmind mcp`).
+Thauthi 3.1 Zero-Dependency MCP Server (`thauthi mcp`).
 
-Exposes Overmind's Runtime Tracer, Differential Shadow Prover, Algorithmic Alchemist,
+Exposes Thauthi's Runtime Tracer, Differential Shadow Prover, Algorithmic Alchemist,
 Contract CEGIS Synthesizer, Whole-Repo Call-Graph Hive, Chronos Time-Travel Kernel,
 Symbolic AST Crystallizer, and Adversarial Shadow Verifier natively over Model Context
 Protocol (MCP) stdio JSON-RPC 2.0 (supporting both newline-delimited JSON and
@@ -19,17 +19,17 @@ import tempfile
 from pathlib import Path
 from typing import Any, BinaryIO, Dict, List, Optional
 
-from overmind import __version__
-from overmind.alchemist import AlgorithmicAlchemist
-from overmind.chronos import ChronosTimeMachine
-from overmind.crystallizer import NeuralSymbolicCrystallizer
-from overmind.hive import CallGraphHive
-from overmind.kernel import CentsibleKernelBridge
-from overmind.omniscient import OmniscientTracer
-from overmind.prover import BehavioralInvariantMiner, DifferentialShadowProver
-from overmind.scorecard import compute_evolution_telemetry
-from overmind.synthesizer import ContractSynthesizer
-from overmind.verifier import ShadowVerifier
+from thauthi import __version__
+from thauthi.alchemist import AlgorithmicAlchemist
+from thauthi.chronos import ChronosTimeMachine
+from thauthi.crystallizer import NeuralSymbolicCrystallizer
+from thauthi.hive import CallGraphHive
+from thauthi.kernel import CentsibleKernelBridge
+from thauthi.omniscient import OmniscientTracer
+from thauthi.prover import BehavioralInvariantMiner, DifferentialShadowProver
+from thauthi.scorecard import compute_evolution_telemetry
+from thauthi.synthesizer import ContractSynthesizer
+from thauthi.verifier import ShadowVerifier
 
 MCP_PROTOCOL_VERSION = "2024-11-05"
 
@@ -45,9 +45,9 @@ def _json_rpc_error(req_id: Any, code: int, message: str, data: Any = None) -> D
     return {"jsonrpc": "2.0", "id": req_id, "error": err}
 
 
-class OvermindMCPServer:
+class ThauthiMCPServer:
     """
-    Zero-dependency Model Context Protocol (MCP) server for Overmind.
+    Zero-dependency Model Context Protocol (MCP) server for Thauthi.
     """
 
     def __init__(self, workspace_dir: Optional[Path] = None, facts_path: Optional[Path] = None):
@@ -67,9 +67,9 @@ class OvermindMCPServer:
     def list_tools(self) -> List[Dict[str, Any]]:
         return [
             {
-                "name": "overmind_status",
+                "name": "thauthi_status",
                 "description": (
-                    "Get Overmind kernel telemetry: Evolution IQ, Darwinian Gene Pool, "
+                    "Get Thauthi kernel telemetry: Evolution IQ, Darwinian Gene Pool, "
                     "forged tools, Symbolic AST Crystals, immune surgeries, and verified token ROI."
                 ),
                 "inputSchema": {
@@ -83,7 +83,7 @@ class OvermindMCPServer:
                 },
             },
             {
-                "name": "overmind_trace",
+                "name": "thauthi_trace",
                 "description": (
                     "Run a Python script or inline source snippet under OmniscientTracer (sys.settrace) "
                     "to capture live FrameDNA variable mutations, execution steps, and Backward Dynamic "
@@ -98,7 +98,7 @@ class OvermindMCPServer:
                 },
             },
             {
-                "name": "overmind_prove",
+                "name": "thauthi_prove",
                 "description": (
                     "Run BehavioralInvariantMiner or DifferentialShadowProver (Old AST vs New AST) "
                     "with randomized property fuzzing and O(N) complexity verification to mathematically "
@@ -119,7 +119,7 @@ class OvermindMCPServer:
                 },
             },
             {
-                "name": "overmind_optimize",
+                "name": "thauthi_optimize",
                 "description": (
                     "Run AlgorithmicAlchemist on a Python file, directory, or inline snippet to detect and optimize "
                     "O(N^2)->O(N) loops and O(2^N)->O(N) recursion, mathematically proving behavioral equivalence "
@@ -137,7 +137,7 @@ class OvermindMCPServer:
                 },
             },
             {
-                "name": "overmind_synthesize",
+                "name": "thauthi_synthesize",
                 "description": (
                     "Run Contract-to-Code CEGIS Synthesizer on stub functions with docstring >>> examples, "
                     "optionally verifying and auto-crystallizing caller-proposed candidate implementations. "
@@ -158,7 +158,7 @@ class OvermindMCPServer:
                 },
             },
             {
-                "name": "overmind_hive",
+                "name": "thauthi_hive",
                 "description": (
                     "Scan the repository call graph (import/alias/class-method aware) to detect broken "
                     "call sites after function signature evolution and optionally auto-heal callers."
@@ -172,7 +172,7 @@ class OvermindMCPServer:
                 },
             },
             {
-                "name": "overmind_chronos",
+                "name": "thauthi_chronos",
                 "description": (
                     "Interact with Chronos Deterministic I/O Virtualization & Time-Travel Cassettes: "
                     "list saved ExecutionCassettes or record a script's execution."
@@ -191,7 +191,7 @@ class OvermindMCPServer:
                 },
             },
             {
-                "name": "overmind_crystallize",
+                "name": "thauthi_crystallize",
                 "description": (
                     "Compile a before->after code edit into a deterministic 0-token Symbolic AST Crystal "
                     "or apply existing crystals across a file/directory."
@@ -213,9 +213,9 @@ class OvermindMCPServer:
                 },
             },
             {
-                "name": "overmind_verify",
+                "name": "thauthi_verify",
                 "description": (
-                    "Run Overmind Adversarial Shadow Verifier across workspace Python files "
+                    "Run Thauthi Adversarial Shadow Verifier across workspace Python files "
                     "(compile checks, debug trap/secret leak scan, and optional pytest execution)."
                 ),
                 "inputSchema": {
@@ -231,11 +231,11 @@ class OvermindMCPServer:
     def _execute_tool(self, name: str, args: Dict[str, Any]) -> Dict[str, Any]:
         bridge = CentsibleKernelBridge(facts_path=self.facts_path)
 
-        if name == "overmind_status":
+        if name == "thauthi_status":
             all_proj = args.get("all_projects")
             return compute_evolution_telemetry(bridge=bridge, all_projects=all_proj)
 
-        if name == "overmind_trace":
+        if name == "thauthi_trace":
             script_raw = args.get("script_path")
             src_code = args.get("source_code")
             if script_raw:
@@ -267,9 +267,9 @@ class OvermindMCPServer:
                     }
                 finally:
                     tmp_path.unlink(missing_ok=True)
-            raise ValueError("Provide `script_path` or `source_code` for overmind_trace.")
+            raise ValueError("Provide `script_path` or `source_code` for thauthi_trace.")
 
-        if name == "overmind_prove":
+        if name == "thauthi_prove":
             mine_path_raw = args.get("mine_path")
             mine_src = args.get("mine_source")
             if mine_path_raw or mine_src:
@@ -300,15 +300,15 @@ class OvermindMCPServer:
             )
             return report.to_dict()
 
-        if name == "overmind_optimize":
+        if name == "thauthi_optimize":
             apply_changes = bool(args.get("apply", False))
             target_raw = args.get("file_path") or args.get("target_path") or args.get("path")
             if target_raw:
                 f_path = self._resolve_path(str(target_raw))
                 if f_path.is_dir():
-                    alchemist = AlgorithmicAlchemist(storage_dir=f_path / ".overmind")
+                    alchemist = AlgorithmicAlchemist(storage_dir=f_path / ".thauthi")
                     return alchemist.optimize_directory(f_path, apply=apply_changes)
-                alchemist = AlgorithmicAlchemist(storage_dir=f_path.parent / ".overmind")
+                alchemist = AlgorithmicAlchemist(storage_dir=f_path.parent / ".thauthi")
                 new_src, reports = alchemist.optimize_file(f_path, apply=apply_changes)
                 return {
                     "target": str(f_path),
@@ -321,7 +321,7 @@ class OvermindMCPServer:
                     "optimized_source": new_src,
                 }
             if args.get("source_code"):
-                alchemist = AlgorithmicAlchemist(storage_dir=self.workspace_dir / ".overmind")
+                alchemist = AlgorithmicAlchemist(storage_dir=self.workspace_dir / ".thauthi")
                 new_src, reports = alchemist.optimize_source(str(args["source_code"]))
                 return {
                     "target": "<inline>",
@@ -333,9 +333,9 @@ class OvermindMCPServer:
                     "transmutations": [r.to_dict() for r in reports],
                     "optimized_source": new_src,
                 }
-            raise ValueError("Provide `file_path` (or `target_path`) or `source_code` for overmind_optimize.")
+            raise ValueError("Provide `file_path` (or `target_path`) or `source_code` for thauthi_optimize.")
 
-        if name == "overmind_synthesize":
+        if name == "thauthi_synthesize":
             candidates = args.get("candidate_sources")
             apply_changes = bool(args.get("apply", False))
             if args.get("file_path"):
@@ -371,19 +371,19 @@ class OvermindMCPServer:
                     }
                 finally:
                     tmp_path.unlink(missing_ok=True)
-            raise ValueError("Provide `file_path` or `source_code` for overmind_synthesize.")
+            raise ValueError("Provide `file_path` or `source_code` for thauthi_synthesize.")
 
-        if name == "overmind_hive":
+        if name == "thauthi_hive":
             ws = self._resolve_path(str(args["workspace_path"])) if args.get("workspace_path") else self.workspace_dir
             apply_changes = bool(args.get("apply", False))
             hive = CallGraphHive(workspace_dir=ws)
             rep = hive.heal_workspace(apply=apply_changes)
             return rep.to_dict()
 
-        if name == "overmind_chronos":
+        if name == "thauthi_chronos":
             action = str(args.get("action") or "list")
             if action == "list":
-                chronos = ChronosTimeMachine(storage_dir=self.workspace_dir / ".overmind" / "cassettes")
+                chronos = ChronosTimeMachine(storage_dir=self.workspace_dir / ".thauthi" / "cassettes")
                 cassettes = chronos.load_cassettes(func_name=args.get("func_name"))
                 return {
                     "count": len(cassettes),
@@ -394,8 +394,8 @@ class OvermindMCPServer:
                 if not script_raw:
                     raise ValueError("Provide `script_path` when action='record'.")
                 script_path = self._resolve_path(str(script_raw))
-                chronos = ChronosTimeMachine(storage_dir=script_path.parent / ".overmind" / "cassettes")
-                mod_globals = runpy.run_path(str(script_path), run_name="__overmind_chronos__")
+                chronos = ChronosTimeMachine(storage_dir=script_path.parent / ".thauthi" / "cassettes")
+                mod_globals = runpy.run_path(str(script_path), run_name="__thauthi_chronos__")
                 for fn_name, obj in list(mod_globals.items()):
                     if inspect.isfunction(obj) and not fn_name.startswith("_"):
                         mod_globals[fn_name] = chronos.protect(obj, auto_heal=True)
@@ -414,7 +414,7 @@ class OvermindMCPServer:
                 }
             raise ValueError(f"Unsupported chronos action: {action}")
 
-        if name == "overmind_crystallize":
+        if name == "thauthi_crystallize":
             action = str(args.get("action") or "list")
             crys = NeuralSymbolicCrystallizer(bridge=bridge)
             if action == "list":
@@ -434,13 +434,13 @@ class OvermindMCPServer:
                 return crys.apply_all_crystals(target_path=target, dry_run=dry_run)
             raise ValueError(f"Unsupported crystallize action: {action}")
 
-        if name == "overmind_verify":
+        if name == "thauthi_verify":
             ws = self._resolve_path(str(args["workspace_path"])) if args.get("workspace_path") else self.workspace_dir
             run_tests = bool(args.get("run_tests", False))
             verifier = ShadowVerifier(workspace_dir=ws)
             return verifier.verify_workspace(run_tests=run_tests)
 
-        raise KeyError(f"Unknown Overmind MCP tool: {name}")
+        raise KeyError(f"Unknown Thauthi MCP tool: {name}")
 
     def call_tool(self, name: str, arguments: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         args = dict(arguments or {})
@@ -487,7 +487,7 @@ class OvermindMCPServer:
                         "tools": {"listChanged": False},
                     },
                     "serverInfo": {
-                        "name": "overmind",
+                        "name": "thauthi",
                         "version": __version__,
                     },
                 },

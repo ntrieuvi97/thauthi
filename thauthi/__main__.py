@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Entrypoint for `python3 -m overmind`."""
+"""Entrypoint for `python3 -m thauthi`."""
 
 import sys
-from overmind.cli import main
+from thauthi.cli import main
 
 if __name__ == "__main__":
     sys.exit(main())

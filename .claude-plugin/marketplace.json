@@ -1,20 +1,20 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "overmind",
-  "description": "Overmind 3.0: The Post-Developer Singularity Kernel for AI coding agents (Antigravity & Claude Code)",
+  "name": "thauthi",
+  "description": "Thauthi 3.0: The Post-Developer Singularity Kernel for AI coding agents (Antigravity & Claude Code)",
   "owner": {
     "name": "Vi Nguyen",
     "url": "https://github.com/ntrieuvi97"
   },
   "plugins": [
     {
-      "name": "overmind",
+      "name": "thauthi",
       "description": "Omniscient Runtime Tracer, Self-Healing AST Surgery, Differential Prover, Symbolic AST Crystals, O(N^2)->O(N) Alchemist, Chronos I/O Time-Travel, CEGIS Synthesizer & Call-Graph Hive.",
-      "version": "3.1.0",
+      "version": "4.0.0",
       "source": "./",
       "category": "productivity",
       "skills": [
-        "./skills/overmind"
+        "./skills/thauthi"
       ]
     }
   ]

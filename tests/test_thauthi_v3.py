@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-End-to-End Verification Suite for Overmind 3.0 (The Post-Developer Singularity Pillars):
-5. Algorithmic Alchemist: Autonomous O(N^2)->O(N) & O(2^N)->O(N) Optimizer (`overmind.alchemist`)
-6. Chronos: Deterministic I/O Virtualization & Time-Travel Replay Kernel (`overmind.chronos`)
-7. Contract-to-Code CEGIS Program Synthesizer (`overmind.synthesizer`)
-8. Whole-Repo Call-Graph Ripple Propagator (`overmind.hive`)
+End-to-End Verification Suite for Thauthi 3.0 (The Post-Developer Singularity Pillars):
+5. Algorithmic Alchemist: Autonomous O(N^2)->O(N) & O(2^N)->O(N) Optimizer (`thauthi.alchemist`)
+6. Chronos: Deterministic I/O Virtualization & Time-Travel Replay Kernel (`thauthi.chronos`)
+7. Contract-to-Code CEGIS Program Synthesizer (`thauthi.synthesizer`)
+8. Whole-Repo Call-Graph Ripple Propagator (`thauthi.hive`)
 """
 
 import runpy
@@ -13,11 +13,11 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List
 
-from overmind.alchemist import AlgorithmicAlchemist
-from overmind.chronos import ChronosTimeMachine, time_travel
-from overmind.cli import main as cli_main
-from overmind.hive import CallGraphHive
-from overmind.synthesizer import ContractSynthesizer, synthesize
+from thauthi.alchemist import AlgorithmicAlchemist
+from thauthi.chronos import ChronosTimeMachine, time_travel
+from thauthi.cli import main as cli_main
+from thauthi.hive import CallGraphHive
+from thauthi.synthesizer import ContractSynthesizer, synthesize
 
 
 def test_pillar5_algorithmic_alchemist_optimizes_o_n2_and_recursion(tmp_path: Path) -> None:
@@ -68,7 +68,7 @@ def test_pillar5_algorithmic_alchemist_optimizes_o_n2_and_recursion(tmp_path: Pa
 
 
 def test_pillar6_chronos_time_travel_cassette_and_stateful_io_healing(tmp_path: Path) -> None:
-    chronos = ChronosTimeMachine(storage_dir=tmp_path / ".overmind" / "cassettes")
+    chronos = ChronosTimeMachine(storage_dir=tmp_path / ".thauthi" / "cassettes")
     network_call_counter = {"count": 0}
 
     def fetch_gateway_settlement(merchant_id: int) -> Dict[str, Any]:
@@ -136,7 +136,7 @@ def test_pillar7_cegis_program_synthesizer_decorator_and_cli(tmp_path: Path) -> 
 
     assert deduplicate_ordered([5, 4, 5, 1, 4]) == [5, 4, 1]
 
-    # 2. Test CLI `overmind synthesize <file> --apply` on stub file
+    # 2. Test CLI `thauthi synthesize <file> --apply` on stub file
     specs_file = tmp_path / "specs.py"
     specs_file.write_text(
         textwrap.dedent(
@@ -154,7 +154,7 @@ def test_pillar7_cegis_program_synthesizer_decorator_and_cli(tmp_path: Path) -> 
                 \"\"\"
                 >>> is_palindrome("radar")
                 True
-                >>> is_palindrome("overmind")
+                >>> is_palindrome("thauthi")
                 False
                 \"\"\"
                 ...

@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """
-Pillar 7: Contract-to-Code CEGIS Program Synthesizer (`overmind.synthesizer`).
+Pillar 7: Contract-to-Code CEGIS Program Synthesizer (`thauthi.synthesizer`).
 
 Eliminates manual imperative coding by allowing developers or agents to write
 ONLY a function signature + docstring doctests (or I/O examples + postconditions).
-Overmind's Counterexample-Guided Inductive Synthesis (CEGIS) engine:
+Thauthi's Counterexample-Guided Inductive Synthesis (CEGIS) engine:
 1. Parses I/O contracts from `>>>` doctests or `@synthesize(examples=[...])`.
 2. Searches compositional AST grammars & algebraic linear solvers to synthesize
    candidate Python implementations.
 3. Verifies 100% example satisfaction, postcondition invariants, argument purity,
    and asymptotic complexity bounds (`O(1)` / `O(N)`) via `BehavioralInvariantMiner`.
 4. Hot-binds the synthesized AST into the live callable or writes the synthesized
-   implementation directly back into the `.py` source file (`overmind synthesize --apply`).
+   implementation directly back into the `.py` source file (`thauthi synthesize --apply`).
 """
 
 import ast
@@ -24,8 +24,8 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
-from overmind.prover import COMPLEXITY_RANK, BehavioralContract, BehavioralInvariantMiner, DifferentialShadowProver
-from overmind.srcedit import splice_source
+from thauthi.prover import COMPLEXITY_RANK, BehavioralContract, BehavioralInvariantMiner, DifferentialShadowProver
+from thauthi.srcedit import splice_source
 
 
 @dataclass
@@ -421,7 +421,7 @@ class ContractSynthesizer:
                 contract_dict = contract.to_dict()
                 if auto_crystallize and expr_summary != "<multi-statement body>":
                     try:
-                        from overmind.crystallizer import NeuralSymbolicCrystallizer
+                        from thauthi.crystallizer import NeuralSymbolicCrystallizer
                         crys = NeuralSymbolicCrystallizer()
                         crystal = crys.crystallize_edit(
                             name=f"synth_{func_name}",
@@ -571,7 +571,7 @@ def synthesize(
         exec(code_obj, ns)
         compiled_fn = ns[fn.__name__]
         functools.update_wrapper(compiled_fn, fn)
-        setattr(compiled_fn, "__overmind_synthesis__", res)
+        setattr(compiled_fn, "__thauthi_synthesis__", res)
         return compiled_fn
 
     if func is not None and callable(func):

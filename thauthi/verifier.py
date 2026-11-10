@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Adversarial Shadow Verifier for Overmind.
+Adversarial Shadow Verifier for Thauthi.
 
 Acts as an uncompromising autonomous Principal Engineer before an agent session finishes:
 - Compiles Python files to catch syntax/indentation regressions immediately.

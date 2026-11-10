@@ -1,9 +1,9 @@
 {
-  "overmind": {
+  "thauthi": {
     "Stop": [
       {
         "type": "command",
-        "command": "./bin/overmind hook stop",
+        "command": "./bin/thauthi hook stop",
         "timeout": 5
       }
     ]

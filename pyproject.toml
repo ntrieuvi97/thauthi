@@ -3,14 +3,14 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "overmind-os"
-version = "3.1.0"
-description = "Overmind 3.0: The Post-Developer Singularity Kernel — Omniscient Runtime Tracer, In-Flight Self-Healing AST Surgery, Differential Shadow Prover, Symbolic AST Crystals, Autonomous O(N^2)->O(N) Alchemist, Chronos I/O Time-Travel, CEGIS Program Synthesizer & Whole-Repo Call-Graph Hive."
+name = "thauthi"
+version = "4.0.0"
+description = "Thauthi 3.0: The Post-Developer Singularity Kernel — Omniscient Runtime Tracer, In-Flight Self-Healing AST Surgery, Differential Shadow Prover, Symbolic AST Crystals, Autonomous O(N^2)->O(N) Alchemist, Chronos I/O Time-Travel, CEGIS Program Synthesizer & Whole-Repo Call-Graph Hive."
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}
 authors = [
-    {name = "Overmind Contributors"}
+    {name = "Thauthi Contributors"}
 ]
 keywords = ["ai-agents", "self-evolving", "autopoietic", "claude-code", "antigravity", "openclaw", "centsible", "mcp"]
 classifiers = [
@@ -23,8 +23,8 @@ classifiers = [
 dependencies = []
 
 [project.scripts]
-overmind = "overmind.cli:main"
+thauthi = "thauthi.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["overmind*"]
+include = ["thauthi*"]

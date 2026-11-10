@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Viral Evolution Scorecard & SVG Generator for Overmind 2.0.
+Viral Evolution Scorecard & SVG Generator for Thauthi 2.0.
 
 Computes Agent Evolution Level, IQ Index, Darwinian Gene Pool health,
 Forged Tools count, Symbolic AST Crystals, Immune Surgeries, and Centsible Token ROI —
@@ -11,10 +11,10 @@ import json
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from overmind.crystallizer import NeuralSymbolicCrystallizer
-from overmind.gene_pool import DarwinianGenePool
-from overmind.kernel import CentsibleKernelBridge
-from overmind.tool_forge import AutopoieticToolForge
+from thauthi.crystallizer import NeuralSymbolicCrystallizer
+from thauthi.gene_pool import DarwinianGenePool
+from thauthi.kernel import CentsibleKernelBridge
+from thauthi.tool_forge import AutopoieticToolForge
 
 
 def compute_evolution_telemetry(
@@ -41,7 +41,7 @@ def compute_evolution_telemetry(
     crystals_reg = crystallizer.load_registry()
     metrics = bridge.get_metrics_summary(scope=scope)
 
-    surgeries_file = cwd / ".overmind" / "surgeries.jsonl"
+    surgeries_file = cwd / ".thauthi" / "surgeries.jsonl"
     immune_surgeries = 0
     if surgeries_file.exists():
         try:
@@ -172,7 +172,7 @@ def render_terminal_scorecard(data: Dict[str, Any]) -> str:
 
     lines = [
         "╔════════════════════════════════════════════════════════════════════════╗",
-        "║  🧠 OVERMIND 3.0 — POST-DEVELOPER SINGULARITY KERNEL SCORECARD         ║",
+        "║  🧠 THAUTHI 3.0 — POST-DEVELOPER SINGULARITY KERNEL SCORECARD         ║",
         "╠════════════════════════════════════════════════════════════════════════╣",
         _pad_box_line("Scope:", scope_tag),
         _pad_box_line("Kernel Engine:", kernel_tag),
@@ -202,7 +202,7 @@ def render_terminal_scorecard(data: Dict[str, Any]) -> str:
 def render_markdown_badge(data: Dict[str, Any]) -> str:
     verified_tok = data.get("verified_tokens_saved", data["net_tokens_saved"])
     return (
-        f"> ⚡ **Evolved by [Overmind 3.0](https://github.com/ntrieuvi97/overmind)** "
+        f"> ⚡ **Evolved by [Thauthi 3.0](https://github.com/ntrieuvi97/thauthi)** "
         f"| **Level {data['level']}** (IQ `{data['agent_iq']}`) "
         f"| `{data['elite_genes']}` Elite Genes (`{data['avg_fitness']}%` fitness) "
         f"| `{data['forged_tools']}` Forged Tools & `{data.get('symbolic_crystals', 0)}` AST Crystals "
@@ -225,7 +225,7 @@ def render_svg_card(data: Dict[str, Any], output_path: Optional[Path] = None) ->
     </linearGradient>
   </defs>
   <rect width="680" height="260" rx="14" fill="url(#bg)" stroke="#26334d" stroke-width="2"/>
-  <text x="28" y="42" fill="#00f2fe" font-family="monospace" font-size="18" font-weight="bold">OVERMIND // SELF-EVOLVING AGENT OS</text>
+  <text x="28" y="42" fill="#00f2fe" font-family="monospace" font-size="18" font-weight="bold">THAUTHI // SELF-EVOLVING AGENT OS</text>
   <text x="28" y="66" fill="#8b9bb4" font-family="monospace" font-size="12">Post-Developer Singularity Kernel v3.0 (Powered by Centsible)</text>
   <rect x="520" y="22" width="132" height="36" rx="8" fill="#112233" stroke="#00f2fe" stroke-width="1.5"/>
   <text x="586" y="45" fill="#00f2fe" font-family="monospace" font-size="15" font-weight="bold" text-anchor="middle">LEVEL {data['level']}</text>

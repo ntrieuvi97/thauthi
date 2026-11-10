@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Autopoietic Tool Forge for Overmind.
+Autopoietic Tool Forge for Thauthi.
 
 Monitors AI agent transcripts (Antigravity, Claude Code, OpenClaw), mines recurring
 multi-step command sequences and error-recovery pipelines, synthesizes standalone
@@ -20,7 +20,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from overmind.kernel import RISKY_COMMAND_RE, CentsibleKernelBridge, get_overmind_home
+from thauthi.kernel import RISKY_COMMAND_RE, CentsibleKernelBridge, get_thauthi_home
 
 TRIVIAL_COMMAND_HEADS = {
     # Navigation & standard inspection
@@ -42,7 +42,7 @@ READONLY_GIT_SUBCOMMANDS = {
 
 AGENT_META_PATTERNS = [
     re.compile(r"\bcheckpoint(?:\.py)?\b", re.IGNORECASE),
-    re.compile(r"\b(?:overmind|centsible)\b", re.IGNORECASE),
+    re.compile(r"\b(?:thauthi|centsible)\b", re.IGNORECASE),
     re.compile(r"\bom_[a-zA-Z0-9_]+\.py\b"),
 ]
 
@@ -374,7 +374,7 @@ def _render_tool_source(candidate: ToolCandidate, workspace_dir: Optional[Path] 
     # json.dumps: title/trigger come from transcripts or CLI input and must stay a string literal
     docstring = json.dumps(
         f"{candidate.title}\n"
-        f"Auto-forged by Overmind Autopoietic Tool Forge at {now}.\n"
+        f"Auto-forged by Thauthi Autopoietic Tool Forge at {now}.\n"
         f"Trigger Pattern: {candidate.trigger_pattern}\n"
         f"Occurrences Observed: {candidate.occurrences}"
     )
@@ -494,7 +494,7 @@ class AutopoieticToolForge:
         tools_dir: Optional[Path] = None,
     ):
         self.bridge = bridge or CentsibleKernelBridge()
-        self.tools_dir = tools_dir or (get_overmind_home() / "forged_tools")
+        self.tools_dir = tools_dir or (get_thauthi_home() / "forged_tools")
         self.tools_dir.mkdir(parents=True, exist_ok=True)
         self.registry_path = self.tools_dir / "registry.json"
 

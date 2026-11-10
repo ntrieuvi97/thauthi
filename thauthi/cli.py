@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Overmind 3.0 CLI — Unified command-line interface for the Post-Developer Singularity Kernel.
+Thauthi 3.0 CLI — Unified command-line interface for the Post-Developer Singularity Kernel.
 """
 
 import argparse
@@ -12,47 +12,47 @@ import sys
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
-from overmind import __version__
-from overmind.alchemist import AlgorithmicAlchemist
-from overmind.chronos import ChronosTimeMachine
-from overmind.crystallizer import NeuralSymbolicCrystallizer
-from overmind.gene_pool import DarwinianGenePool
-from overmind.hive import CallGraphHive
-from overmind.immune import AutopoieticImmuneSystem
-from overmind.initializer import RepoInitializer
-from overmind.kernel import CentsibleKernelBridge
-from overmind.mcp_server import OvermindMCPServer
-from overmind.omniscient import OmniscientTracer
-from overmind.prover import BehavioralInvariantMiner, DifferentialShadowProver
-from overmind.scorecard import (
+from thauthi import __version__
+from thauthi.alchemist import AlgorithmicAlchemist
+from thauthi.chronos import ChronosTimeMachine
+from thauthi.crystallizer import NeuralSymbolicCrystallizer
+from thauthi.gene_pool import DarwinianGenePool
+from thauthi.hive import CallGraphHive
+from thauthi.immune import AutopoieticImmuneSystem
+from thauthi.initializer import RepoInitializer
+from thauthi.kernel import CentsibleKernelBridge
+from thauthi.mcp_server import ThauthiMCPServer
+from thauthi.omniscient import OmniscientTracer
+from thauthi.prover import BehavioralInvariantMiner, DifferentialShadowProver
+from thauthi.scorecard import (
     compute_evolution_telemetry,
     render_markdown_badge,
     render_svg_card,
     render_terminal_scorecard,
 )
-from overmind.synthesizer import ContractSynthesizer
-from overmind.tool_forge import AutopoieticToolForge
-from overmind.verifier import ShadowVerifier
+from thauthi.synthesizer import ContractSynthesizer
+from thauthi.tool_forge import AutopoieticToolForge
+from thauthi.verifier import ShadowVerifier
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="overmind",
-        description="Overmind 3.0: The Post-Developer Singularity Kernel for AI Coding Agents.",
+        prog="thauthi",
+        description="Thauthi 3.0: The Post-Developer Singularity Kernel for AI Coding Agents.",
     )
-    parser.add_argument("-v", "--version", action="version", version=f"Overmind v{__version__}")
+    parser.add_argument("-v", "--version", action="version", version=f"Thauthi v{__version__}")
     parser.add_argument("--facts-path", type=Path, default=None, help="Custom path to facts.jsonl")
     sub = parser.add_subparsers(dest="subcommand")
 
     # status
-    p_status = sub.add_parser("status", help="Show Overmind kernel, gene pool, tool forge & AST crystal status")
+    p_status = sub.add_parser("status", help="Show Thauthi kernel, gene pool, tool forge & AST crystal status")
     p_status.add_argument("--all", action="store_true", help="Aggregate metrics and genes across all repositories")
     p_status.add_argument("--json", action="store_true", help="Output JSON")
 
     # init (World-Scale Zero-Touch Repo Onboarding)
-    p_init = sub.add_parser("init", help="Bootstrap Overmind into any repository (Git hook, GitHub Actions CI, Claude/Cursor/AGY configs, Team DNA)")
+    p_init = sub.add_parser("init", help="Bootstrap Thauthi into any repository (Git hook, GitHub Actions CI, Claude/Cursor/AGY configs, Team DNA)")
     p_init.add_argument("path", nargs="?", type=Path, default=Path("."), help="Target repository directory (default: current directory)")
-    p_init.add_argument("--no-ci", action="store_true", help="Skip generating .github/workflows/overmind.yml")
+    p_init.add_argument("--no-ci", action="store_true", help="Skip generating .github/workflows/thauthi.yml")
     p_init.add_argument("--no-git-hook", action="store_true", help="Skip installing .git/hooks/pre-commit")
     p_init.add_argument("--no-agents", action="store_true", help="Skip generating .claude, .cursor, and .agent configs")
     p_init.add_argument("--json", action="store_true", help="Output JSON")
@@ -101,7 +101,7 @@ def build_parser() -> argparse.ArgumentParser:
     # chronos (Pillar 6: Deterministic I/O Virtualization & Time-Travel Replay)
     p_chr = sub.add_parser("chronos", help="Record, list, or replay deterministic I/O & time-travel execution cassettes")
     p_chr.add_argument("--script", type=Path, default=None, help="Execute script under Chronos I/O Virtualization & Time-Travel Healing")
-    p_chr.add_argument("--list", action="store_true", help="List recorded I/O execution cassettes in .overmind/cassettes")
+    p_chr.add_argument("--list", action="store_true", help="List recorded I/O execution cassettes in .thauthi/cassettes")
     p_chr.add_argument("--json", action="store_true", help="Output JSON")
 
     # synthesize (Pillar 7: Contract-to-Code CEGIS Program Synthesizer)
@@ -156,21 +156,21 @@ def build_parser() -> argparse.ArgumentParser:
     p_score.add_argument("--json", action="store_true", help="Output JSON")
 
     # dna
-    p_dna = sub.add_parser("dna", help="Export or import cross-repo Elite DNA (.overmind/dna.jsonl)")
+    p_dna = sub.add_parser("dna", help="Export or import cross-repo Elite DNA (.thauthi/dna.jsonl)")
     p_dna.add_argument("action", choices=["export", "import"], help="Export or import DNA")
-    p_dna.add_argument("--path", type=Path, default=Path(".overmind/dna.jsonl"), help="DNA JSONL file path")
+    p_dna.add_argument("--path", type=Path, default=Path(".thauthi/dna.jsonl"), help="DNA JSONL file path")
     p_dna.add_argument("--include-active", action="store_true", help="Include active genes alongside elite genes")
 
     # hook (Antigravity & Claude Code lifecycle integration)
     p_hook = sub.add_parser("hook", help="Lifecycle hook handler for Antigravity, Claude Code & OpenClaw")
     p_hook.add_argument("event", choices=["stop", "post-session"], help="Hook event name")
 
-    # update (Self-updater for Overmind installation)
-    p_upd = sub.add_parser("update", help="Self-update Overmind to the latest release from GitHub")
+    # update (Self-updater for Thauthi installation)
+    p_upd = sub.add_parser("update", help="Self-update Thauthi to the latest release from GitHub")
     p_upd.add_argument("--json", action="store_true", help="Output JSON")
 
     # mcp (Zero-Dependency Model Context Protocol Server)
-    p_mcp = sub.add_parser("mcp", help="Run Overmind as a stdio MCP Server for Antigravity, Claude Code & Cursor")
+    p_mcp = sub.add_parser("mcp", help="Run Thauthi as a stdio MCP Server for Antigravity, Claude Code & Cursor")
     p_mcp.add_argument("--root", type=Path, default=None, help="Workspace root directory (default: current directory)")
 
     return parser
@@ -205,7 +205,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         if args.json:
             print(json.dumps(rep, ensure_ascii=False, indent=2))
         else:
-            print(f"🚀 Initialized Overmind 3.0 in repository: {rep['repository']}")
+            print(f"🚀 Initialized Thauthi 3.0 in repository: {rep['repository']}")
             for f_rel in rep["files_configured"]:
                 print(f"  ✓ Configured: {f_rel}")
         return 0
@@ -234,8 +234,8 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     if args.subcommand == "heal":
         script_path = args.script.resolve()
-        immune_sys = AutopoieticImmuneSystem(storage_dir=script_path.parent / ".overmind")
-        mod_globals = runpy.run_path(str(script_path), run_name="__overmind_heal__")
+        immune_sys = AutopoieticImmuneSystem(storage_dir=script_path.parent / ".thauthi")
+        mod_globals = runpy.run_path(str(script_path), run_name="__thauthi_heal__")
         for name, obj in list(mod_globals.items()):
             if inspect.isfunction(obj) and not name.startswith("_"):
                 mod_globals[name] = immune_sys.protect(
@@ -265,7 +265,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         if args.json:
             print(json.dumps(out, ensure_ascii=False, indent=2))
         else:
-            print(f"=== Overmind Autopoietic Immune System [{args.mode}] ({len(immune_sys.surgeries)} surgery/surgeries) ===")
+            print(f"=== Thauthi Autopoietic Immune System [{args.mode}] ({len(immune_sys.surgeries)} surgery/surgeries) ===")
             for s in immune_sys.surgeries:
                 print(
                     f"  🩹 Healed {s.func_name}() on {s.exception_type} via [{s.strategy_applied}] "
@@ -353,13 +353,13 @@ def main(argv: Optional[List[str]] = None) -> int:
     if args.subcommand == "optimize":
         target_path = args.file.resolve()
         if target_path.is_dir():
-            alchemist = AlgorithmicAlchemist(storage_dir=target_path / ".overmind")
+            alchemist = AlgorithmicAlchemist(storage_dir=target_path / ".thauthi")
             payload = alchemist.optimize_directory(target_path, apply=args.apply)
             if args.json:
                 print(json.dumps(payload, ensure_ascii=False, indent=2))
             else:
                 print(
-                    f"=== Overmind Algorithmic Alchemist: {target_path.name} "
+                    f"=== Thauthi Algorithmic Alchemist: {target_path.name} "
                     f"({payload['files_scanned']} file(s) scanned, {payload['transmutations_count']} optimization(s)) ==="
                 )
                 for r_dict in payload["transmutations"]:
@@ -377,7 +377,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                     )
             return 0
 
-        alchemist = AlgorithmicAlchemist(storage_dir=target_path.parent / ".overmind")
+        alchemist = AlgorithmicAlchemist(storage_dir=target_path.parent / ".thauthi")
         new_src, reports = alchemist.optimize_file(target_path, apply=args.apply)
         payload = {
             "target": str(target_path),
@@ -391,7 +391,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         if args.json:
             print(json.dumps(payload, ensure_ascii=False, indent=2))
         else:
-            print(f"=== Overmind Algorithmic Alchemist: {target_path.name} ({len(reports)} optimization(s)) ===")
+            print(f"=== Thauthi Algorithmic Alchemist: {target_path.name} ({len(reports)} optimization(s)) ===")
             for r in reports:
                 print(
                     f"  🧪 {r.func_name}() [{r.strategy}]: {r.old_complexity} -> {r.new_complexity} "
@@ -414,8 +414,8 @@ def main(argv: Optional[List[str]] = None) -> int:
 
         if args.script:
             script_path = args.script.resolve()
-            chronos_local = ChronosTimeMachine(storage_dir=script_path.parent / ".overmind" / "cassettes")
-            mod_globals = runpy.run_path(str(script_path), run_name="__overmind_chronos__")
+            chronos_local = ChronosTimeMachine(storage_dir=script_path.parent / ".thauthi" / "cassettes")
+            mod_globals = runpy.run_path(str(script_path), run_name="__thauthi_chronos__")
             for name, obj in list(mod_globals.items()):
                 if inspect.isfunction(obj) and not name.startswith("_"):
                     mod_globals[name] = chronos_local.protect(obj, auto_heal=True)
@@ -450,7 +450,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         if args.json:
             print(json.dumps(payload, ensure_ascii=False, indent=2))
         else:
-            print(f"=== Overmind CEGIS Program Synthesizer: {target_file.name} ({len(results)} synthesized) ===")
+            print(f"=== Thauthi CEGIS Program Synthesizer: {target_file.name} ({len(results)} synthesized) ===")
             for r in results:
                 print(
                     f"  🧬 {r.func_name}(): synthesized `return {r.synthesized_expr}` "
@@ -466,7 +466,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         else:
             mode_tag = "APPLIED" if args.apply else "PREVIEW"
             print(
-                f"=== Overmind Whole-Repo Call-Graph Hive [{mode_tag}] ===\n"
+                f"=== Thauthi Whole-Repo Call-Graph Hive [{mode_tag}] ===\n"
                 f"• Files Scanned: {rep.files_scanned} | Functions Indexed: {rep.functions_indexed} | Drifts Healed: {rep.drifts_detected}"
             )
             for fx in rep.fixes:
@@ -496,7 +496,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         else:
             mode_str = "DRY-RUN" if args.dry_run else "LIVE"
             print(
-                f"=== Overmind Evolution Cycle [{mode_str}] ===\n"
+                f"=== Thauthi Evolution Cycle [{mode_str}] ===\n"
                 f"• Evaluated: {report['total_evaluated']} genes\n"
                 f"• Promoted to Elite: {report['elites_count']}\n"
                 f"• Auto-Mutated (Recessive -> Next Gen): {report['mutated_count']}\n"
@@ -515,7 +515,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             else:
                 print(f"=== Autopoietic Forged Tools ({len(reg)}) ===")
                 for slug, info in reg.items():
-                    pending = "" if info.get("bound", True) else f" [PENDING: overmind forge --approve {slug}]"
+                    pending = "" if info.get("bound", True) else f" [PENDING: thauthi forge --approve {slug}]"
                     print(f"• {slug}: {info.get('title')} -> {info.get('tool_path')}{pending}")
             return 0
 
@@ -584,7 +584,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         else:
             verdict = "✅ PASSED" if report["passed"] else "❌ BLOCKED"
             print(
-                f"=== Overmind Adversarial Shadow Verifier: {verdict} ===\n"
+                f"=== Thauthi Adversarial Shadow Verifier: {verdict} ===\n"
                 f"• Files Checked: {report['files_checked']} | Integrity Score: {report['integrity_score']}/100"
             )
             for iss in report["issues"]:
@@ -609,7 +609,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         pool = DarwinianGenePool(bridge=bridge)
         if args.action == "export":
             out = pool.export_dna(output_path=args.path, include_active=args.include_active)
-            print(f"🧬 Exported Overmind DNA to {out}")
+            print(f"🧬 Exported Thauthi DNA to {out}")
             return 0
         count = pool.import_dna(dna_path=args.path)
         print(f"🧬 Imported {count} genes from {args.path} into Centsible Reflex Kernel")
@@ -634,7 +634,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             t_path = Path(str(t_path_str)).expanduser()
             if t_path.exists():
                 forge = AutopoieticToolForge(bridge=bridge)
-                # Unattended: forge only. A human binds the directive via `overmind forge --approve`.
+                # Unattended: forge only. A human binds the directive via `thauthi forge --approve`.
                 forge.forge_from_transcript(t_path, min_occurrences=2, bind_to_centsible=False)
 
         sys.stdout.write("{}\n")
@@ -654,7 +654,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             msg = (proc.stdout or proc.stderr).strip()
         else:
             proc = subprocess.run(
-                [sys.executable, "-m", "pip", "install", "--upgrade", "git+https://github.com/ntrieuvi97/overmind.git"],
+                [sys.executable, "-m", "pip", "install", "--upgrade", "git+https://github.com/ntrieuvi97/thauthi.git"],
                 capture_output=True,
                 text=True,
                 timeout=60,
@@ -672,11 +672,11 @@ def main(argv: Optional[List[str]] = None) -> int:
             print(json.dumps(payload, ensure_ascii=False, indent=2))
         else:
             status_icon = "✅" if ok else "❌"
-            print(f"{status_icon} Overmind Self-Update ({install_root}): {msg}")
+            print(f"{status_icon} Thauthi Self-Update ({install_root}): {msg}")
         return 0 if ok else 1
 
     if args.subcommand == "mcp":
-        server = OvermindMCPServer(workspace_dir=args.root, facts_path=args.facts_path)
+        server = ThauthiMCPServer(workspace_dir=args.root, facts_path=args.facts_path)
         return server.serve_stdio()
 
     return 0

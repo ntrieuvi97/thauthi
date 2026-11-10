@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
-World-Scale Repository Onboarding (`overmind init`).
+World-Scale Repository Onboarding (`thauthi init`).
 
-Turns any git repository on Earth into an Overmind 2.0 Autopoietic Repository with a single command:
-1. Portable Team DNA (`.overmind/dna.jsonl`) committed to the repo
+Turns any git repository on Earth into an Thauthi 2.0 Autopoietic Repository with a single command:
+1. Portable Team DNA (`.thauthi/dna.jsonl`) committed to the repo
 2. Git Pre-Commit Adversarial & Differential Guard (`.git/hooks/pre-commit`)
-3. GitHub Actions Autonomous PR Gate & Scorecard (`.github/workflows/overmind.yml`)
+3. GitHub Actions Autonomous PR Gate & Scorecard (`.github/workflows/thauthi.yml`)
 4. Multi-Runtime Agent Wiring:
    - Claude Code (`.claude/settings.json`)
-   - Cursor (`.cursor/rules/overmind.mdc`)
-   - Google Antigravity (`.agent/rules/overmind.md`)
+   - Cursor (`.cursor/rules/thauthi.mdc`)
+   - Google Antigravity (`.agent/rules/thauthi.md`)
 """
 
 import json
@@ -18,25 +18,25 @@ import stat
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-PRE_COMMIT_MARKER = "# >>> overmind-pre-commit >>>"
+PRE_COMMIT_MARKER = "# >>> thauthi-pre-commit >>>"
 
 PRE_COMMIT_SCRIPT = f"""#!/usr/bin/env bash
 {PRE_COMMIT_MARKER}
-if command -v overmind >/dev/null 2>&1; then
-    echo "🧠 [Overmind 2.0] Running pre-commit Adversarial Shadow Verifier & Symbolic Crystals..."
-    if [ -f ".overmind/dna.jsonl" ]; then
-        overmind dna import --path .overmind/dna.jsonl >/dev/null 2>&1 || true
+if command -v thauthi >/dev/null 2>&1; then
+    echo "🧠 [Thauthi 2.0] Running pre-commit Adversarial Shadow Verifier & Symbolic Crystals..."
+    if [ -f ".thauthi/dna.jsonl" ]; then
+        thauthi dna import --path .thauthi/dna.jsonl >/dev/null 2>&1 || true
     fi
-    overmind crystallize --apply . >/dev/null 2>&1 || true
-    overmind verify
+    thauthi crystallize --apply . >/dev/null 2>&1 || true
+    thauthi verify
 fi
-# <<< overmind-pre-commit <<<
+# <<< thauthi-pre-commit <<<
 """
 
-from overmind import __version__  # noqa: E402  (defined before overmind/__init__ imports this module)
+from thauthi import __version__  # noqa: E402  (defined before thauthi/__init__ imports this module)
 
 # Pinned to this release's tag so a compromised `main` cannot reach every onboarded repo's CI.
-GITHUB_WORKFLOW_YAML = f"""name: Overmind 2.0 Autonomous Verification & Evolution Gate
+GITHUB_WORKFLOW_YAML = f"""name: Thauthi 2.0 Autonomous Verification & Evolution Gate
 
 on:
   push:
@@ -45,7 +45,7 @@ on:
     branches: [ main, master ]
 
 jobs:
-  overmind-gate:
+  thauthi-gate:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -58,10 +58,10 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install Overmind 2.0 Kernel & Project Dependencies
+      - name: Install Thauthi 2.0 Kernel & Project Dependencies
         run: |
           python -m pip install --upgrade pip pytest
-          python -m pip install git+https://github.com/ntrieuvi97/overmind.git@v{__version__}
+          python -m pip install git+https://github.com/ntrieuvi97/thauthi.git@v{__version__}
           if [ -f "pyproject.toml" ] || [ -f "setup.py" ]; then
             pip install -e . || true
           fi
@@ -71,46 +71,46 @@ jobs:
 
       - name: Import Team Elite DNA & Apply 0-Token Symbolic AST Crystals
         run: |
-          if [ -f ".overmind/dna.jsonl" ]; then
-            overmind dna import --path .overmind/dna.jsonl
+          if [ -f ".thauthi/dna.jsonl" ]; then
+            thauthi dna import --path .thauthi/dna.jsonl
           fi
-          overmind crystallize --apply . --dry-run
+          thauthi crystallize --apply . --dry-run
 
       - name: Run Adversarial Shadow Verifier & Test Suite
         run: |
-          overmind verify --run-tests
+          thauthi verify --run-tests
 
-      - name: Publish Overmind Evolution Scorecard to PR Summary
+      - name: Publish Thauthi Evolution Scorecard to PR Summary
         if: always()
         run: |
-          overmind scorecard --markdown >> "$GITHUB_STEP_SUMMARY"
+          thauthi scorecard --markdown >> "$GITHUB_STEP_SUMMARY"
 """
 
-AGENT_RULE_MARKDOWN = """# Overmind 3.0 Post-Developer Singularity Kernel Rules
+AGENT_RULE_MARKDOWN = """# Thauthi 3.0 Post-Developer Singularity Kernel Rules
 
-When working in this repository, use the Overmind 3.0 CLI (`overmind`) to eliminate static guessing and guarantee zero-regression code:
+When working in this repository, use the Thauthi 3.0 CLI (`thauthi`) to eliminate static guessing and guarantee zero-regression code:
 
-1. **Runtime Fault Localization (`overmind trace <script.py>`):** Inspect live `FrameDNA` and Backward Dynamic Causal Slices instead of guessing why code crashes.
-2. **In-Flight Self-Healing (`overmind heal <script.py> --apply`):** Automatically synthesize `pytest` regression tests from crashing frames and verify AST patches in memory.
-3. **Mathematical Equivalence & Complexity Proof (`overmind prove --before <old.py> --after <new.py>`):** Prove semantic equivalence, input purity, and prevent `O(N) -> O(N^2)+` regressions.
-4. **Zero-Token AST Crystallization (`overmind crystallize`):** Compile recurring code patterns into `<2ms` symbolic AST codemods (`overmind crystallize --apply .`).
-5. **Autonomous O(N^2)->O(N) Optimization (`overmind optimize <file.py> --apply`):** Automatically transmute nested scans & exponential recursion with equivalence proofs.
-6. **Chronos Time-Travel Replay (`overmind chronos --script <file.py>`):** Record and replay stateful I/O cassettes in `<1ms` with zero side effects.
-7. **Contract-to-Code CEGIS Synthesis (`overmind synthesize <file.py> --apply`):** Synthesize proven code from docstring `>>>` examples.
-8. **Whole-Repo Call-Graph Hive (`overmind hive . --apply`):** Automatically repair broken callers across files after function signature changes.
-9. **Zero-Dep MCP Server (`overmind mcp`):** Prefer Overmind MCP tools (`overmind_trace`, `overmind_prove`, `overmind_optimize`, `overmind_hive`, `overmind_chronos`) over static text guessing.
-10. **Pre-Completion Verification (`overmind verify --run-tests`):** Always run before finishing any task.
+1. **Runtime Fault Localization (`thauthi trace <script.py>`):** Inspect live `FrameDNA` and Backward Dynamic Causal Slices instead of guessing why code crashes.
+2. **In-Flight Self-Healing (`thauthi heal <script.py> --apply`):** Automatically synthesize `pytest` regression tests from crashing frames and verify AST patches in memory.
+3. **Mathematical Equivalence & Complexity Proof (`thauthi prove --before <old.py> --after <new.py>`):** Prove semantic equivalence, input purity, and prevent `O(N) -> O(N^2)+` regressions.
+4. **Zero-Token AST Crystallization (`thauthi crystallize`):** Compile recurring code patterns into `<2ms` symbolic AST codemods (`thauthi crystallize --apply .`).
+5. **Autonomous O(N^2)->O(N) Optimization (`thauthi optimize <file.py> --apply`):** Automatically transmute nested scans & exponential recursion with equivalence proofs.
+6. **Chronos Time-Travel Replay (`thauthi chronos --script <file.py>`):** Record and replay stateful I/O cassettes in `<1ms` with zero side effects.
+7. **Contract-to-Code CEGIS Synthesis (`thauthi synthesize <file.py> --apply`):** Synthesize proven code from docstring `>>>` examples.
+8. **Whole-Repo Call-Graph Hive (`thauthi hive . --apply`):** Automatically repair broken callers across files after function signature changes.
+9. **Zero-Dep MCP Server (`thauthi mcp`):** Prefer Thauthi MCP tools (`thauthi_trace`, `thauthi_prove`, `thauthi_optimize`, `thauthi_hive`, `thauthi_chronos`) over static text guessing.
+10. **Pre-Completion Verification (`thauthi verify --run-tests`):** Always run before finishing any task.
 """
 
 
 class RepoInitializer:
-    """Scaffolds Overmind 2.0 into any target repository for universal team & CI adoption."""
+    """Scaffolds Thauthi 2.0 into any target repository for universal team & CI adoption."""
 
     def __init__(self, repo_dir: Optional[Path] = None):
         self.repo_dir = (repo_dir or Path.cwd()).resolve()
 
     def init_dna_store(self) -> Path:
-        dna_file = self.repo_dir / ".overmind" / "dna.jsonl"
+        dna_file = self.repo_dir / ".thauthi" / "dna.jsonl"
         dna_file.parent.mkdir(parents=True, exist_ok=True)
         if not dna_file.exists():
             dna_file.write_text("", encoding="utf-8")
@@ -137,7 +137,7 @@ class RepoInitializer:
         return hook_file
 
     def install_github_workflow(self) -> Path:
-        wf_file = self.repo_dir / ".github" / "workflows" / "overmind.yml"
+        wf_file = self.repo_dir / ".github" / "workflows" / "thauthi.yml"
         wf_file.parent.mkdir(parents=True, exist_ok=True)
         wf_file.write_text(GITHUB_WORKFLOW_YAML, encoding="utf-8")
         return wf_file
@@ -145,18 +145,18 @@ class RepoInitializer:
     def install_agent_configs(self) -> List[str]:
         installed: List[str] = []
 
-        # 1. Google Antigravity (.agent/rules/overmind.md)
-        agy_rule = self.repo_dir / ".agent" / "rules" / "overmind.md"
+        # 1. Google Antigravity (.agent/rules/thauthi.md)
+        agy_rule = self.repo_dir / ".agent" / "rules" / "thauthi.md"
         agy_rule.parent.mkdir(parents=True, exist_ok=True)
         agy_rule.write_text(AGENT_RULE_MARKDOWN, encoding="utf-8")
         installed.append(str(agy_rule.relative_to(self.repo_dir)))
 
-        # 2. Cursor (.cursor/rules/overmind.mdc)
-        cursor_rule = self.repo_dir / ".cursor" / "rules" / "overmind.mdc"
+        # 2. Cursor (.cursor/rules/thauthi.mdc)
+        cursor_rule = self.repo_dir / ".cursor" / "rules" / "thauthi.mdc"
         cursor_rule.parent.mkdir(parents=True, exist_ok=True)
         cursor_mdc = (
             "---\n"
-            "description: Overmind 2.0 Omniscient Autopoietic Kernel workflow and verification rules\n"
+            "description: Thauthi 2.0 Omniscient Autopoietic Kernel workflow and verification rules\n"
             "globs: **/*.py\n"
             "alwaysApply: true\n"
             "---\n\n"
@@ -177,17 +177,17 @@ class RepoInitializer:
 
         hooks_cfg = settings.setdefault("hooks", {})
         stop_hooks = hooks_cfg.setdefault("Stop", [])
-        overmind_hook_entry = {
+        thauthi_hook_entry = {
             "matcher": "",
             "hooks": [
                 {
                     "type": "command",
-                    "command": "overmind hook stop",
+                    "command": "thauthi hook stop",
                 }
             ],
         }
-        if not any("overmind hook stop" in json.dumps(h) for h in stop_hooks):
-            stop_hooks.append(overmind_hook_entry)
+        if not any("thauthi hook stop" in json.dumps(h) for h in stop_hooks):
+            stop_hooks.append(thauthi_hook_entry)
         claude_settings_path.write_text(json.dumps(settings, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
         installed.append(str(claude_settings_path.relative_to(self.repo_dir)))
 
@@ -202,9 +202,9 @@ class RepoInitializer:
                 except ValueError:
                     mcp_cfg = {}
             servers = mcp_cfg.setdefault("mcpServers", {})
-            if "overmind" not in servers:
-                servers["overmind"] = {
-                    "command": "overmind",
+            if "thauthi" not in servers:
+                servers["thauthi"] = {
+                    "command": "thauthi",
                     "args": ["mcp", "--root", "."],
                 }
             mcp_path.write_text(json.dumps(mcp_cfg, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

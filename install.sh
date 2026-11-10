@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Overmind 3.0 Universal Installer (macOS / Linux / WSL / CI) 🧠⚡
+# Thauthi 3.0 Universal Installer (macOS / Linux / WSL / CI) 🧠⚡
 # Supports both:
-#   1) Remote 1-liner: curl -fsSL https://raw.githubusercontent.com/ntrieuvi97/overmind/main/install.sh | bash
+#   1) Remote 1-liner: curl -fsSL https://raw.githubusercontent.com/ntrieuvi97/thauthi/main/install.sh | bash
 #   2) Local clone:    ./install.sh
 # ==============================================================================
 set -e
 
-OVERMIND_GIT_URL="${OVERMIND_GIT_URL:-https://github.com/ntrieuvi97/overmind.git}"
+THAUTHI_GIT_URL="${THAUTHI_GIT_URL:-https://github.com/ntrieuvi97/thauthi.git}"
 LOCAL_BIN="$HOME/.local/bin"
 
 SCRIPT_DIR=""
@@ -15,32 +15,32 @@ if [ -n "${BASH_SOURCE[0]:-}" ] && [ -f "${BASH_SOURCE[0]}" ]; then
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 fi
 
-if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/bin/overmind" ]; then
+if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/bin/thauthi" ]; then
     REPO_DIR="$SCRIPT_DIR"
 else
-    REPO_DIR="$HOME/.overmind/repo"
-    mkdir -p "$HOME/.overmind"
+    REPO_DIR="$HOME/.thauthi/repo"
+    mkdir -p "$HOME/.thauthi"
     if [ -d "$REPO_DIR/.git" ]; then
-        echo "• Updating Overmind 3.0 in $REPO_DIR..."
+        echo "• Updating Thauthi 3.0 in $REPO_DIR..."
         git -C "$REPO_DIR" pull --ff-only >/dev/null 2>&1 || true
     else
-        echo "• Cloning Overmind 3.0 from $OVERMIND_GIT_URL..."
-        # Pin a release: OVERMIND_REF=v3.0.0 ./install.sh  (default: latest main)
-        git clone --depth 1 ${OVERMIND_REF:+--branch "$OVERMIND_REF"} "$OVERMIND_GIT_URL" "$REPO_DIR"
+        echo "• Cloning Thauthi 3.0 from $THAUTHI_GIT_URL..."
+        # Pin a release: THAUTHI_REF=v3.0.0 ./install.sh  (default: latest main)
+        git clone --depth 1 ${THAUTHI_REF:+--branch "$THAUTHI_REF"} "$THAUTHI_GIT_URL" "$REPO_DIR"
     fi
 fi
 
-echo "=== Installing Overmind 3.0: Post-Developer Singularity Kernel 🧠⚡ ==="
+echo "=== Installing Thauthi 3.0: Post-Developer Singularity Kernel 🧠⚡ ==="
 echo "• Source Directory: $REPO_DIR"
 
-chmod +x "$REPO_DIR/bin/overmind"
+chmod +x "$REPO_DIR/bin/thauthi"
 mkdir -p "$LOCAL_BIN"
 
-ln -sf "$REPO_DIR/bin/overmind" "$LOCAL_BIN/overmind"
-echo "✓ Linked Global CLI: $LOCAL_BIN/overmind -> $REPO_DIR/bin/overmind"
+ln -sf "$REPO_DIR/bin/thauthi" "$LOCAL_BIN/thauthi"
+echo "✓ Linked Global CLI: $LOCAL_BIN/thauthi -> $REPO_DIR/bin/thauthi"
 
 # 1. Google Antigravity Plugin Link
-PLUGIN_DIR="$HOME/.gemini/config/plugins/overmind"
+PLUGIN_DIR="$HOME/.gemini/config/plugins/thauthi"
 mkdir -p "$HOME/.gemini/config/plugins"
 ln -sfn "$REPO_DIR" "$PLUGIN_DIR"
 echo "✓ Linked Antigravity Plugin: $PLUGIN_DIR -> $REPO_DIR"
@@ -61,8 +61,8 @@ if claude_cfg.exists():
 
 hooks = data.setdefault("hooks", {})
 stop_list = hooks.setdefault("Stop", [])
-cmd_str = str(Path.home() / ".local" / "bin" / "overmind") + " hook stop"
-if not any("overmind hook stop" in json.dumps(item) for item in stop_list):
+cmd_str = str(Path.home() / ".local" / "bin" / "thauthi") + " hook stop"
+if not any("thauthi hook stop" in json.dumps(item) for item in stop_list):
     stop_list.append({
         "matcher": "",
         "hooks": [{"type": "command", "command": cmd_str}]
@@ -73,6 +73,6 @@ echo "✓ Registered Claude Code Global Lifecycle Hook (~/.claude/settings.json)
 
 export PATH="$LOCAL_BIN:$PATH"
 echo ""
-"$LOCAL_BIN/overmind" status || true
+"$LOCAL_BIN/thauthi" status || true
 echo ""
-echo "🎉 Overmind 3.0 is ready! Run 'overmind init' inside any repo to onboard your team & CI."
+echo "🎉 Thauthi 3.0 is ready! Run 'thauthi init' inside any repo to onboard your team & CI."

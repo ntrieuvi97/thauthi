@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Comprehensive end-to-end test suite for Overmind:
+Comprehensive end-to-end test suite for Thauthi:
 - Centsible Reflex Kernel Bridge
 - Darwinian Gene Pool (Fitness, Auto-Mutation, Extinction, Portable DNA)
 - Autopoietic Tool Forge (Transcript Mining, Tool Synthesis, 3-Gate Verification, Centsible Auto-Binding)
@@ -14,16 +14,16 @@ from pathlib import Path
 
 import pytest
 
-from overmind.cli import main as cli_main
-from overmind.gene_pool import (
+from thauthi.cli import main as cli_main
+from thauthi.gene_pool import (
     DarwinianGenePool,
     classify_gene_status,
     compute_darwinian_fitness,
     mutate_pattern_and_directive,
 )
-from overmind.kernel import CentsibleKernelBridge
-from overmind.scorecard import compute_evolution_telemetry, render_markdown_badge, render_svg_card
-from overmind.tool_forge import (
+from thauthi.kernel import CentsibleKernelBridge
+from thauthi.scorecard import compute_evolution_telemetry, render_markdown_badge, render_svg_card
+from thauthi.tool_forge import (
     AutopoieticToolForge,
     CommandStep,
     ToolCandidate,
@@ -33,7 +33,7 @@ from overmind.tool_forge import (
     is_trivial_or_meta_step,
     mine_candidates,
 )
-from overmind.verifier import ShadowVerifier
+from thauthi.verifier import ShadowVerifier
 
 
 def test_centsible_kernel_binding_and_fact_crud(tmp_path: Path) -> None:
@@ -56,7 +56,7 @@ def test_centsible_kernel_binding_and_fact_crud(tmp_path: Path) -> None:
 def test_darwinian_fitness_and_evolution_cycle(tmp_path: Path) -> None:
     facts_file = tmp_path / "facts.jsonl"
     events_file = tmp_path / "events.jsonl"
-    home_dir = tmp_path / "overmind_home"
+    home_dir = tmp_path / "thauthi_home"
 
     # Seed 3 genes:
     # 1) Elite gene: shown 10, applied 9
@@ -125,7 +125,7 @@ def test_darwinian_fitness_and_evolution_cycle(tmp_path: Path) -> None:
     assert "'pytest tests/ -v'" in mut_info["new_directive"]
 
     # Verify DNA export & import round-trip
-    dna_path = tmp_path / ".overmind" / "dna.jsonl"
+    dna_path = tmp_path / ".thauthi" / "dna.jsonl"
     pool.export_dna(output_path=dna_path, include_active=False)
     assert dna_path.exists()
     dna_records = [json.loads(line) for line in dna_path.read_text(encoding="utf-8").splitlines() if line.strip()]
@@ -206,7 +206,7 @@ def test_scorecard_and_cli_end_to_end(tmp_path: Path) -> None:
     ])
     assert rc == 0
     assert svg_file.exists()
-    assert "OVERMIND // SELF-EVOLVING AGENT OS" in svg_file.read_text(encoding="utf-8")
+    assert "THAUTHI // SELF-EVOLVING AGENT OS" in svg_file.read_text(encoding="utf-8")
 
 
 def test_noise_shield_and_path_generalization(tmp_path: Path) -> None:
@@ -341,7 +341,7 @@ def test_centsible_metrics_aliases_and_verified_scorecard_roi(tmp_path: Path) ->
     bridge = CentsibleKernelBridge(facts_path=facts_file)
     summary = bridge.get_metrics_summary()
 
-    # Verify alias normalization between Centsible and Overmind keys
+    # Verify alias normalization between Centsible and Thauthi keys
     assert summary["net_tokens_saved"] == summary["net_saved_tokens"]
     assert summary["net_tokens_saved"] >= 1495000
     assert summary["estimated_usd_saved"] == summary["saved_usd"]
@@ -351,7 +351,7 @@ def test_centsible_metrics_aliases_and_verified_scorecard_roi(tmp_path: Path) ->
     assert 20000 <= summary["verified_tokens_saved"] <= 35000
 
     # Verify Scorecard separates verified vs estimated tokens and does not inflate Level on unattributed hits
-    from overmind.crystallizer import NeuralSymbolicCrystallizer
+    from thauthi.crystallizer import NeuralSymbolicCrystallizer
 
     pool = DarwinianGenePool(bridge=bridge, home_dir=tmp_path / "om_home")
     forge = AutopoieticToolForge(bridge=bridge, tools_dir=tools_dir)

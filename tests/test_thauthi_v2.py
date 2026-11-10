@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-End-to-End Verification Suite for Overmind 2.0 (The 4 Omniscient Pillars):
+End-to-End Verification Suite for Thauthi 2.0 (The 4 Omniscient Pillars):
 1. Omniscient Runtime Tracer & Backward Dynamic Causal Fault Localization
 2. In-Flight Self-Healing Immune System & Counterfactual AST Surgery
 3. Behavioral Invariant Miner & Differential Shadow Prover (Semantics, Purity, O(N) Complexity)
@@ -14,12 +14,12 @@ import textwrap
 from pathlib import Path
 from typing import Any, Dict, List
 
-from overmind.cli import main as cli_main
-from overmind.crystallizer import NeuralSymbolicCrystallizer, abstract_edit_pair
-from overmind.immune import AutopoieticImmuneSystem
-from overmind.kernel import CentsibleKernelBridge
-from overmind.omniscient import OmniscientTracer
-from overmind.prover import BehavioralInvariantMiner, DifferentialShadowProver
+from thauthi.cli import main as cli_main
+from thauthi.crystallizer import NeuralSymbolicCrystallizer, abstract_edit_pair
+from thauthi.immune import AutopoieticImmuneSystem
+from thauthi.kernel import CentsibleKernelBridge
+from thauthi.omniscient import OmniscientTracer
+from thauthi.prover import BehavioralInvariantMiner, DifferentialShadowProver
 
 
 def test_pillar1_omniscient_tracer_and_causal_fault_graph(tmp_path: Path) -> None:
@@ -63,7 +63,7 @@ def test_pillar1_omniscient_tracer_and_causal_fault_graph(tmp_path: Path) -> Non
 
 
 def test_pillar2_in_flight_self_healing_immune_system_and_ast_surgery(tmp_path: Path) -> None:
-    immune_sys = AutopoieticImmuneSystem(storage_dir=tmp_path / ".overmind")
+    immune_sys = AutopoieticImmuneSystem(storage_dir=tmp_path / ".thauthi")
 
     @immune_sys.protect(auto_heal=True, persist_test=True, apply_patch=False)
     def compute_roi(gain: float, cost: float) -> float:
@@ -252,12 +252,12 @@ def test_world_scale_repo_init_scaffolds_ci_hooks_and_agents(tmp_path: Path) -> 
     rc = cli_main(["init", str(repo), "--json"])
     assert rc == 0
 
-    assert (repo / ".overmind" / "dna.jsonl").exists()
+    assert (repo / ".thauthi" / "dna.jsonl").exists()
     assert (repo / ".git" / "hooks" / "pre-commit").exists()
-    assert (repo / ".github" / "workflows" / "overmind.yml").exists()
+    assert (repo / ".github" / "workflows" / "thauthi.yml").exists()
     assert (repo / ".claude" / "settings.json").exists()
-    assert (repo / ".cursor" / "rules" / "overmind.mdc").exists()
-    assert (repo / ".agent" / "rules" / "overmind.md").exists()
+    assert (repo / ".cursor" / "rules" / "thauthi.mdc").exists()
+    assert (repo / ".agent" / "rules" / "thauthi.md").exists()
 
     claude_cfg = json.loads((repo / ".claude" / "settings.json").read_text(encoding="utf-8"))
     assert "Stop" in claude_cfg.get("hooks", {})

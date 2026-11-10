@@ -21,15 +21,15 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
-from overmind.omniscient import OmniscientTracer
-from overmind.prover import (
+from thauthi.omniscient import OmniscientTracer
+from thauthi.prover import (
     COMPLEXITY_RANK,
     BehavioralContract,
     BehavioralInvariantMiner,
     DifferentialShadowProver,
     synthesize_domain_inputs,
 )
-from overmind.srcedit import splice_source
+from thauthi.srcedit import splice_source
 
 
 @dataclass
@@ -63,7 +63,7 @@ IGNORED_SCAN_DIRS = {
     ".venv",
     "venv",
     "env",
-    ".overmind",
+    ".thauthi",
     "dist",
     "build",
 }
@@ -689,7 +689,7 @@ class AlgorithmicAlchemist:
     """
 
     def __init__(self, storage_dir: Optional[Path] = None):
-        self.storage_dir = storage_dir or (Path.cwd() / ".overmind")
+        self.storage_dir = storage_dir or (Path.cwd() / ".thauthi")
         self.transmutations: List[TransmutationReport] = []
 
     @staticmethod
