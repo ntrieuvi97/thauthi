@@ -678,3 +678,36 @@ def test_alchemist_resolves_relative_and_with_guarded_imports_inside_packages(tm
     assert [r.func_name for r in reports] == ["match_rel"]
     assert "from ..utils import norm" in new_src and "with contextlib.suppress(ImportError):" in new_src
 
+
+
+def test_hive_does_not_bind_builtin_method_calls_to_same_named_repo_function(tmp_path: Path) -> None:
+    """`d.get(k, 0)` on an untyped receiver must never be pruned to `d.get(k)` just because
+    the repo defines a unique `get` method/function with fewer parameters."""
+    repo = tmp_path / "builtin_collision_repo"
+    repo.mkdir(parents=True)
+    (repo / "cache.py").write_text(
+        textwrap.dedent(
+            """\
+            class Cache:
+                def get(self, key):
+                    return key
+
+            def pop(key):
+                return key
+            """
+        ),
+        encoding="utf-8",
+    )
+    caller_src = textwrap.dedent(
+        """\
+        def f(s, items):
+            a = s.get('change_pct', 0)
+            b = items.pop(0)
+            return a, b
+        """
+    )
+    (repo / "screener.py").write_text(caller_src, encoding="utf-8")
+
+    report = CallGraphHive(workspace_dir=repo).heal_workspace(apply=True)
+    assert report.drifts_detected == 0
+    assert (repo / "screener.py").read_text(encoding="utf-8") == caller_src

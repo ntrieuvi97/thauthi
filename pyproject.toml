@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "thauthi"
-version = "4.0.2"
+version = "4.0.3"
 description = "Thauthi 3.0: The Post-Developer Singularity Kernel — Omniscient Runtime Tracer, In-Flight Self-Healing AST Surgery, Differential Shadow Prover, Symbolic AST Crystals, Autonomous O(N^2)->O(N) Alchemist, Chronos I/O Time-Travel, CEGIS Program Synthesizer & Whole-Repo Call-Graph Hive."
 readme = "README.md"
 requires-python = ">=3.9"

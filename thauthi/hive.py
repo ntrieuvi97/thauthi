@@ -24,6 +24,27 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 from thauthi.srcedit import splice_source
 
+# Method names of builtin containers/str/bytes/file objects. A call like `x.get(k, 0)` with an
+# untyped receiver is overwhelmingly a builtin call, so the repo-wide unique-name fallback must
+# never bind it to a same-named user function (that rewrote `d.get(k, 0)` -> `d.get(k)`).
+_BUILTIN_METHOD_NAMES = frozenset(
+    {
+        # dict
+        "get", "pop", "popitem", "setdefault", "update", "items", "keys", "values", "copy", "clear", "fromkeys",
+        # list / set / deque
+        "append", "extend", "insert", "remove", "index", "count", "sort", "reverse", "add", "discard",
+        "union", "intersection", "difference", "symmetric_difference", "issubset", "issuperset", "isdisjoint",
+        "appendleft", "popleft", "extendleft", "rotate",
+        # str / bytes
+        "join", "split", "rsplit", "strip", "lstrip", "rstrip", "replace", "find", "rfind", "startswith",
+        "endswith", "format", "encode", "decode", "lower", "upper", "title", "partition", "rpartition",
+        "splitlines", "zfill", "ljust", "rjust", "center",
+        # file-like / misc
+        "read", "write", "readline", "readlines", "writelines", "close", "flush", "seek", "tell", "open",
+        "send", "put", "submit",
+    }
+)
+
 
 @dataclass
 class FunctionSignatureInfo:
@@ -538,8 +559,10 @@ class CallGraphHive:
                                 if q_func in index.by_qual_name:
                                     return index.by_qual_name[q_func]
 
-                        # 6. Fallback for unique top-level/method name across repo
-                        if isinstance(fn.value, ast.Name):
+                        # 6. Fallback for unique top-level/method name across repo.
+                        # Skipped for builtin-container method names: with an untyped receiver the
+                        # call is almost certainly `dict.get`/`list.append`/..., not user code.
+                        if isinstance(fn.value, ast.Name) and attr_name not in _BUILTIN_METHOD_NAMES:
                             if attr_name in index.unique_bare_funcs:
                                 return index.unique_bare_funcs[attr_name]
                             if attr_name in index.unique_methods:
